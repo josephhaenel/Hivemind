@@ -113,3 +113,7 @@ This is a working **MVP**: collision avoidance, live sync, shared decisions, per
 - shared-token auth (good for a team you invite; multi-user accounts are a later milestone).
 
 Contributions and ideas welcome — start with the design docs.
+
+## License
+
+[MIT](LICENSE) © Joseph Haenel
