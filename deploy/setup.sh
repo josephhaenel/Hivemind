@@ -109,21 +109,12 @@ EOF
 echo "==> Writing Caddyfile (automatic HTTPS)"
 cat > /etc/caddy/Caddyfile <<EOF
 $WT_DOMAIN {
+	# /sync/* -> sync relay (websockets); everything else -> coordination server
+	# (which serves the dashboard at /, plus /v1/*, /mcp, /healthz).
 	handle_path /sync/* {
 		reverse_proxy localhost:4200
 	}
-	handle /v1/* {
-		reverse_proxy localhost:4100
-	}
-	handle /mcp* {
-		reverse_proxy localhost:4100
-	}
-	handle /healthz {
-		reverse_proxy localhost:4100
-	}
-	handle {
-		respond "WorkingTogether server" 200
-	}
+	reverse_proxy localhost:4100
 }
 EOF
 
