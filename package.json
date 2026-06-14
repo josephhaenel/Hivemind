@@ -1,0 +1,16 @@
+{
+  "name": "workingtogether",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Multiplayer for AI coding agents — collision avoidance + live file sync for Claude Code / Codex.",
+  "type": "module",
+  "scripts": {
+    "install:all": "npm --prefix packages/coordination-mcp-server install && npm --prefix packages/sync-relay install && npm --prefix packages/sync-daemon install",
+    "build": "npm --prefix packages/coordination-mcp-server run build && npm --prefix packages/sync-relay run build && npm --prefix packages/sync-daemon run build",
+    "test": "npm --prefix packages/coordination-mcp-server test",
+    "demo": "node examples/combined-demo.mjs",
+    "demo:sync": "npm --prefix packages/sync-daemon run demo",
+    "start:coord": "npm --prefix packages/coordination-mcp-server start",
+    "start:relay": "npm --prefix packages/sync-relay start"
+  }
+}

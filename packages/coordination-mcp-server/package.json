@@ -1,0 +1,31 @@
+{
+  "name": "@workingtogether/coordination-mcp-server",
+  "version": "0.1.0",
+  "description": "WorkingTogether coordination MCP server: claims, presence, and the shared decisions bus for multiplayer AI coding. Implements docs/design/coordination-mcp.md (MVP slice).",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "wt-coordination-mcp-server": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "test": "node --import tsx --test src/*.test.ts",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "express": "^4.21.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

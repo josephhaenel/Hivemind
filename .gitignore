@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# build output
+dist/
+**/dist/
+
+# workflow scratch (multi-agent run artifacts)
+.wf-extract/
+.wf2/
+.wf3/
+.wf*/
+
+# logs / env
+*.log
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,29 @@
+{
+  "name": "@workingtogether/sync-relay",
+  "version": "0.1.0",
+  "description": "WorkingTogether sync relay: a minimal Yjs CRDT relay (websocket) that fans out document updates between connected sync daemons. One room per repo.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "wt-sync-relay": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "lib0": "^0.2.97",
+    "ws": "^8.18.0",
+    "y-protocols": "^1.0.6",
+    "yjs": "^13.6.20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@workingtogether/sync-daemon",
+  "version": "0.1.0",
+  "description": "WorkingTogether per-machine sync daemon: mirrors the gitignore-bounded working tree into a shared Yjs CRDT (disk->CRDT on local edits, CRDT->disk on remote edits) via the sync relay.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "wt-sync-daemon": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "demo": "node demo/run-demo.mjs",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "ignore": "^5.3.2",
+    "ws": "^8.18.0",
+    "y-websocket": "^1.5.4",
+    "yjs": "^13.6.20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
