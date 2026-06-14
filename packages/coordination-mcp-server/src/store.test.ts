@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { CoordinationStore } from "./store.js";
 
 function mkReq(store: CoordinationStore, over: Partial<Parameters<CoordinationStore["claim"]>[0]> = {}) {
@@ -138,4 +141,43 @@ test("enforceRegistration: unregistered agent fails closed on enforcing region",
   const o = s.claim(mkReq(s, { actorId: "ghost", origin: "agent" }));
   assert.equal(o.result, "ERROR");
   if (o.result === "ERROR") assert.equal(o.error.code, "UNREGISTERED_ACTOR");
+});
+
+test("persistence: decisions + identity survive across store instances", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wt-persist-"));
+  try {
+    const s1 = new CoordinationStore({ dataDir: dir });
+    s1.registerIdentity({ actorId: "alice", kind: "agent", displayName: "Alice" });
+    s1.postDecision({
+      repo: "demo",
+      scope: { level: "repo" },
+      kind: "constraint",
+      title: "no any types",
+      body: "use unknown",
+      author: "alice",
+      authorKind: "agent",
+      requestId: "p1",
+    });
+    s1.flushPersistence();
+
+    const s2 = new CoordinationStore({ dataDir: dir });
+    const heads = s2.getDecisions("demo", { level: "repo" }, false);
+    assert.equal(heads.length, 1);
+    assert.equal(heads[0].title, "no any types");
+
+    // a fresh decision after reload gets a higher ord (counter restored)
+    const r = s2.postDecision({
+      repo: "demo",
+      scope: { level: "repo" },
+      kind: "note",
+      title: "second",
+      body: "x",
+      author: "alice",
+      authorKind: "agent",
+      requestId: "p2",
+    });
+    assert.ok(r.ok && r.value.ord > heads[0].ord);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

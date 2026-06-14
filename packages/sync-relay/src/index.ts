@@ -14,6 +14,8 @@
 
 import { WebSocketServer, type WebSocket } from "ws";
 import type { IncomingMessage } from "node:http";
+import fs from "node:fs";
+import path from "node:path";
 import * as Y from "yjs";
 import * as syncProtocol from "y-protocols/sync";
 import * as awarenessProtocol from "y-protocols/awareness";
@@ -32,6 +34,34 @@ interface Room {
 
 const rooms = new Map<string, Room>();
 
+// Optional durability: persist each room's CRDT doc to disk so a relay restart
+// doesn't lose live working-tree state. Opt-in via WT_RELAY_DATA_DIR.
+const DATA_DIR = process.env.WT_RELAY_DATA_DIR;
+const saveTimers = new Map<string, NodeJS.Timeout>();
+
+function roomFile(name: string): string {
+  const safe = name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+  return path.join(DATA_DIR as string, `${safe}.ydoc.bin`);
+}
+
+function scheduleRoomSave(room: Room): void {
+  if (!DATA_DIR || saveTimers.has(room.name)) return;
+  const t = setTimeout(() => {
+    saveTimers.delete(room.name);
+    try {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+      const file = roomFile(room.name);
+      const tmp = `${file}.tmp`;
+      fs.writeFileSync(tmp, Buffer.from(Y.encodeStateAsUpdate(room.doc)));
+      fs.renameSync(tmp, file);
+    } catch (e) {
+      console.error(`[relay] save failed for room ${room.name}:`, e);
+    }
+  }, 400);
+  t.unref?.();
+  saveTimers.set(room.name, t);
+}
+
 function getRoom(name: string): Room {
   let room = rooms.get(name);
   if (room) return room;
@@ -40,6 +70,16 @@ function getRoom(name: string): Room {
   const awareness = new awarenessProtocol.Awareness(doc);
   const conns = new Set<WebSocket>();
 
+  // Restore persisted state, if any, before wiring update handlers.
+  if (DATA_DIR) {
+    try {
+      const buf = fs.readFileSync(roomFile(name));
+      Y.applyUpdate(doc, new Uint8Array(buf));
+    } catch {
+      /* no prior state for this room */
+    }
+  }
+
   // Fan out document updates to every peer except the one that produced them.
   doc.on("update", (update: Uint8Array, origin: unknown) => {
     const enc = encoding.createEncoder();
@@ -47,6 +87,8 @@ function getRoom(name: string): Room {
     syncProtocol.writeUpdate(enc, update);
     const msg = encoding.toUint8Array(enc);
     for (const c of conns) if (c !== origin && c.readyState === c.OPEN) c.send(msg);
+    const r = rooms.get(name);
+    if (r) scheduleRoomSave(r);
   });
 
   // Fan out awareness (presence) updates to everyone.

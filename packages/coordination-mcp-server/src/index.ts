@@ -22,9 +22,21 @@ import type { Kind, Mode } from "./types.js";
 
 const PORT = parseInt(process.env.PORT || "4100", 10);
 const ENFORCE_REGISTRATION = process.env.WT_ENFORCE_REGISTRATION === "1";
+const DATA_DIR = process.env.WT_DATA_DIR; // if set, decisions + identity persist here
 
 // The single shared store — the linearizable coordination state for all clients.
-const store = new CoordinationStore({ enforceRegistration: ENFORCE_REGISTRATION });
+const store = new CoordinationStore({ enforceRegistration: ENFORCE_REGISTRATION, dataDir: DATA_DIR });
+
+function shutdown(): void {
+  try {
+    store.flushPersistence();
+  } catch {
+    /* ignore */
+  }
+  process.exit(0);
+}
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -113,5 +125,5 @@ app.listen(PORT, () => {
   console.error(`wt-coordination-mcp-server listening on http://localhost:${PORT}`);
   console.error(`  MCP:   POST /mcp`);
   console.error(`  hooks: POST /v1/claim, POST /v1/release, GET /v1/whos_editing`);
-  console.error(`  health: GET /healthz   (enforceRegistration=${ENFORCE_REGISTRATION})`);
+  console.error(`  health: GET /healthz   (enforceRegistration=${ENFORCE_REGISTRATION}, persist=${DATA_DIR ?? "off"})`);
 });

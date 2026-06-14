@@ -28,6 +28,9 @@ npm test            # coordination-server unit tests
 
 1. **One person runs the shared services** (or host them somewhere both can reach):
    ```bash
+   # set these to persist state across restarts (otherwise in-memory):
+   export WT_DATA_DIR=./.wt-data            # coordination: decisions + identity
+   export WT_RELAY_DATA_DIR=./.wt-data/crdt # relay: per-repo CRDT docs
    npm run start:coord    # http://localhost:4100   (claims)
    npm run start:relay    # ws://localhost:4200     (sync)
    ```
@@ -58,4 +61,4 @@ npm test            # coordination-server unit tests
 
 ## Current limits (MVP)
 
-In-memory servers (a restart loses claims/decisions/CRDT state); text files only, under 512 KB; rename = delete+create; identity is first-seen-trust. The production hardening (git-baseline landing, persistence, fencing on the write path, crypto identity) is specified in the design docs and tracked as next steps.
+Durable state is opt-in via `WT_DATA_DIR` / `WT_RELAY_DATA_DIR` (decisions, identity, and the per-repo CRDT survive restarts; active claims/presence are TTL-ephemeral by design). Still MVP: text files only, under 512 KB; rename = delete+create; identity is first-seen-trust; enforcement is hook-side only. The remaining production hardening (git-baseline landing, fencing on the write path, crypto identity/trust-root, daemon-side enforcement) is specified in the design docs and tracked as next steps.
