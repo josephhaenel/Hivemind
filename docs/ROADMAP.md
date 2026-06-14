@@ -6,14 +6,16 @@ Each initiative lists its **goal**, **why it matters**, the **key tasks**, **dep
 
 ---
 
-## 0. CI & tests — *foundation* ✅ in progress
+## 0. CI & tests — *foundation* ✅ done
 
 **Goal:** every push builds, unit-tests, and runs the integration demos on GitHub Actions; green badge in the README.
 **Why:** cheap credibility for a public repo and a safety net for everything below.
 **Tasks:** GitHub Actions workflow (build + `npm test` + `npm run demo`/`demo:enforce`/`demo:persist`); README badge; a `CONTRIBUTING.md` note. Add more integration tests as features land.
 **Size:** S.
 
-## 1. Frictionless onboarding — *adoption*
+## 1. Frictionless onboarding — *adoption* 🚧 in progress
+
+**Status:** the `@workingtogether/cli` (`wt`) is built — `wt init` (saves config + wires hooks + gitignores the token), `wt up`/`wt down` (managed daemon), `wt status`, and `wt hook pre|post`. Remaining: publish to npm so `npx @workingtogether/cli` works clone-free.
 
 **Goal:** go from "clone, build, hand-edit `.claude/settings.json`, run a long daemon command" to **one command**.
 **Why:** the single biggest lever for usefulness — nobody adopts a tool they can't start in a minute.

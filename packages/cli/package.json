@@ -1,0 +1,21 @@
+{
+  "name": "@workingtogether/cli",
+  "version": "0.1.0",
+  "description": "WorkingTogether CLI: one-command setup, status, and the Claude Code hooks.",
+  "type": "module",
+  "bin": {
+    "wt": "dist/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "engines": { "node": ">=18" },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
