@@ -50,7 +50,9 @@ Each initiative lists its **goal**, **why it matters**, the **key tasks**, **dep
 **Depends on:** 2 (so there's presence + decision activity worth showing).
 **Size:** M.
 
-## 4. Smarter collision avoidance — *core capability depth*
+## 4. Smarter collision avoidance — *core capability depth* 🚧 in progress
+
+**Status:** the store now enforces the repo ⊃ node ⊃ region **containment lattice** (two agents can hold different symbols in one file; a whole-file claim still blocks all regions in it; the daemon's node-grain check conservatively over-blocks). 18 unit tests. Remaining: the hook's symbol resolver (a conservative, dependency-free heuristic that degrades to whole-file on any doubt), then `diff3` conflict-as-data. **Decision (from an adversarial design pass): defer diff3 conflict-as-data** — it has unresolved data-loss modes (a CRDT lacks the shared ancestor diff3 needs); keep the safe block/revert until it can be done without losing edits.
 
 **Goal:** two agents can work in the **same file, different functions**, and overlaps surface gracefully.
 **Why:** whole-file claims are coarse; region-level is the headline capability jump (and it's already designed in `coordination-mcp.md`).

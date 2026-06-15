@@ -36,6 +36,7 @@ import { DEFAULT_POLICY, decide, resolvePolicy, type PolicyRule } from "./policy
 
 export interface ResolvedRegion {
   regionId: string;
+  nodeId: string; // hash of the path alone (the containment parent)
   anchor: string;
   grain: Grain;
   symbol: string | null;
@@ -44,6 +45,8 @@ export interface ResolvedRegion {
 export interface ClaimRequest {
   repo: string;
   regionId: string;
+  nodeId: string; // symbol-less hash of the path (containment parent); === regionId for node grain
+  byteRange?: [number, number];
   anchor: string;
   grain: Grain;
   path?: string; // for policy resolution
@@ -72,8 +75,11 @@ const err = (
 export class CoordinationStore {
   private fenceCounter = 0;
   private ordCounter = 0;
-  private exclusiveByRegion = new Map<string, Claim>();
+  private exclusiveByRegion = new Map<string, Claim>(); // storage/release index by regionId
   private sharedByRegion = new Map<string, Map<string, Claim>>(); // regionId -> actorId -> claim
+  // containment index: nodeId(file) -> its whole-file claim + per-symbol region claims.
+  // This is what enforces repo ⊃ node ⊃ region without ever un-hashing a regionId.
+  private byNode = new Map<string, { nodeClaim?: Claim; regionClaims: Map<string, Claim> }>();
   private claimById = new Map<string, Claim>();
   private decisions = new Map<string, Decision>();
   private presence = new Map<string, Presence>(); // keyed by actorId
@@ -130,11 +136,14 @@ export class CoordinationStore {
   resolveRegion(repo: string, path: string, symbol?: string): ResolvedRegion {
     const anchor = symbol ? `${path}#${symbol}` : path;
     const grain: Grain = symbol ? "region" : "node";
-    const regionId = createHash("sha256")
-      .update(`${repo}${String.fromCharCode(0)}${anchor}`) // NUL delimiter — cannot appear in a repo id or path
-      .digest("hex")
-      .slice(0, 32);
-    return { regionId, anchor, grain, symbol: symbol ?? null };
+    const hash = (s: string) =>
+      createHash("sha256")
+        .update(`${repo}${String.fromCharCode(0)}${s}`) // NUL delimiter — cannot appear in a repo id or path
+        .digest("hex")
+        .slice(0, 32);
+    // regionId hashes the full anchor (path or path#symbol); nodeId hashes the path
+    // alone so the store can enforce node ⊃ region without un-hashing anything.
+    return { regionId: hash(anchor), nodeId: hash(path), anchor, grain, symbol: symbol ?? null };
   }
 
   // ---- identity ----
@@ -151,20 +160,10 @@ export class CoordinationStore {
   // ---- lazy expiry sweep (TTL reclaim of crashed holders) ----
   private sweep(): void {
     const t = this.now();
-    for (const [rid, c] of this.exclusiveByRegion) {
-      if (c.expiresAt <= t) {
-        this.exclusiveByRegion.delete(rid);
-        this.claimById.delete(c.claimId);
-      }
-    }
-    for (const [rid, holders] of this.sharedByRegion) {
-      for (const [actor, c] of holders) {
-        if (c.expiresAt <= t) {
-          holders.delete(actor);
-          this.claimById.delete(c.claimId);
-        }
-      }
-      if (holders.size === 0) this.sharedByRegion.delete(rid);
+    // route every expiry through removeClaim so ALL indexes (exclusiveByRegion,
+    // byNode, idempotency, shared) stay consistent — no phantom-block leaks.
+    for (const c of [...this.claimById.values()]) {
+      if (c.expiresAt <= t) this.removeClaim(c);
     }
     for (const [a, p] of this.presence) if (p.expiresAt <= t) this.presence.delete(a);
   }
@@ -215,63 +214,88 @@ export class CoordinationStore {
       return this.remember(req.requestId, { result: "GRANTED", claim });
     }
 
-    // exclusive
-    const existing = this.exclusiveByRegion.get(req.regionId);
-
-    if (existing && existing.holder === req.actorId) {
-      // reentrant: same fence, bump hold count, refresh lease
-      existing.holdCount += 1;
-      existing.expiresAt = this.now() + existing.ttlMs;
-      if (req.progressToken && req.progressToken > existing.lastProgress) {
-        existing.lastProgress = req.progressToken;
+    // exclusive — reentrant fast path: same actor re-claiming the exact same region/node
+    const ownExact = this.exclusiveByRegion.get(req.regionId);
+    if (ownExact && ownExact.holder === req.actorId) {
+      ownExact.holdCount += 1;
+      ownExact.expiresAt = this.now() + ownExact.ttlMs;
+      if (req.progressToken && req.progressToken > ownExact.lastProgress) {
+        ownExact.lastProgress = req.progressToken;
       }
-      return this.remember(req.requestId, { result: "GRANTED", claim: existing });
+      return this.remember(req.requestId, { result: "GRANTED", claim: ownExact });
     }
 
-    if (!existing) {
-      const claim = this.mintClaim(req, "exclusive", effectiveKind, pol);
-      this.exclusiveByRegion.set(req.regionId, claim);
-      this.claimById.set(claim.claimId, claim);
-      return this.remember(req.requestId, { result: "GRANTED", claim });
+    // lattice conflict check (repo ⊃ node ⊃ region), excluding our own claims
+    const existing = this.findConflicting(req);
+    if (existing) {
+      const verdict = decide(effectiveKind, existing.kind, pol);
+      if (verdict === "BLOCKED") {
+        const retry = Math.max(0, existing.expiresAt - this.now());
+        return this.remember(req.requestId, {
+          result: "BLOCKED",
+          error: err(
+            "REGION_CLAIMED",
+            "BLOCKED_RETRYABLE",
+            `'${req.anchor}' is held by '${existing.holder}' (${existing.kind}) via '${existing.anchor}': ${existing.intent}`,
+            {
+              holder: existing.holder,
+              holder_kind: existing.kind,
+              intent: existing.intent,
+              retry_after_ms: retry,
+              remediation: ["wt_whos_editing", "wt_handoff", "retry after retry_after_ms"],
+            }
+          ),
+        });
+      }
+      // WARN_PROCEED (human involved): no lock taken; the write proceeds and is
+      // conflict-marked later. Return a soft fence for tracing.
+      const conflicts: ConflictInfo[] = [
+        { regionId: existing.regionId, holder: existing.holder, holderKind: existing.kind, intent: existing.intent },
+      ];
+      return this.remember(req.requestId, { result: "WARN_PROCEED", claim: null, conflicts, soft_fence: this.nextFence() });
     }
 
-    // contended
-    const verdict = decide(effectiveKind, existing.kind, pol);
-    if (verdict === "BLOCKED") {
-      const retry = Math.max(0, existing.expiresAt - this.now());
-      return this.remember(req.requestId, {
-        result: "BLOCKED",
-        error: err(
-          "REGION_CLAIMED",
-          "BLOCKED_RETRYABLE",
-          `Region '${req.anchor}' is held exclusively by '${existing.holder}' (${existing.kind}): ${existing.intent}`,
-          {
-            holder: existing.holder,
-            holder_kind: existing.kind,
-            intent: existing.intent,
-            retry_after_ms: retry,
-            remediation: ["wt_whos_editing", "wt_handoff", "retry after retry_after_ms"],
-          }
-        ),
-      });
-    }
+    // free — grant + index
+    const claim = this.mintClaim(req, "exclusive", effectiveKind, pol);
+    this.exclusiveByRegion.set(req.regionId, claim);
+    this.claimById.set(claim.claimId, claim);
+    this.indexClaim(claim);
+    return this.remember(req.requestId, { result: "GRANTED", claim });
+  }
 
-    // WARN_PROCEED (human involved): no exclusive lock taken; the write proceeds
-    // and conflict-as-data handles overlap later. Return a soft fence for tracing.
-    const conflicts: ConflictInfo[] = [
-      {
-        regionId: existing.regionId,
-        holder: existing.holder,
-        holderKind: existing.kind,
-        intent: existing.intent,
-      },
-    ];
-    return this.remember(req.requestId, {
-      result: "WARN_PROCEED",
-      claim: null,
-      conflicts,
-      soft_fence: this.nextFence(),
-    });
+  /** Lattice conflict check on the structural anchor (never un-hashes a regionId):
+   *  repo covers all; node(file) covers itself + every region in it; a region
+   *  conflicts with the same region + its covering node, but NOT a sibling region.
+   *  A node-grain query conflicts with ANY held region in that file (safe over-block,
+   *  used by the daemon's enforcement check which only knows the path). Own-actor
+   *  claims never conflict (reentrancy across grains). */
+  private findConflicting(req: {
+    repo: string;
+    nodeId: string;
+    regionId: string;
+    grain: Grain;
+    actorId: string;
+  }): Claim | null {
+    const b = this.byNode.get(req.nodeId);
+    if (!b) return null;
+    if (b.nodeClaim && b.nodeClaim.holder !== req.actorId) return b.nodeClaim; // node covers everything in the file
+    if (req.grain === "node" || req.grain === "repo") {
+      for (const r of b.regionClaims.values()) if (r.holder !== req.actorId) return r; // over-block on file-grain query
+      return null;
+    }
+    const same = b.regionClaims.get(req.regionId); // region-vs-same-region (siblings differ → no conflict)
+    if (same && same.holder !== req.actorId) return same;
+    return null;
+  }
+
+  private indexClaim(c: Claim): void {
+    let b = this.byNode.get(c.nodeId);
+    if (!b) {
+      b = { regionClaims: new Map() };
+      this.byNode.set(c.nodeId, b);
+    }
+    if (c.grain === "node" || c.grain === "repo") b.nodeClaim = c;
+    else b.regionClaims.set(c.regionId, c);
   }
 
   private resolveIncomingKind(req: ClaimRequest): Kind | null {
@@ -284,6 +308,9 @@ export class CoordinationStore {
       claimId: randomUUID(),
       repo: req.repo,
       regionId: req.regionId,
+      nodeId: req.nodeId,
+      byteRange: req.byteRange,
+      requestId: req.requestId,
       grain: req.grain,
       anchor: req.anchor,
       holder: req.actorId,
@@ -323,32 +350,56 @@ export class CoordinationStore {
     return { ok: true, value: { released: true, wokeNext: false } };
   }
 
-  /** Non-mutating check used by the daemon write path (§4.2 / [D-46]) to gate
-   *  edits that bypass the hook: allowed iff the region is free or held by me. */
-  canWrite(regionId: string, actorId: string): { allowed: boolean; holder?: string; holderKind?: Kind } {
+  /** Non-mutating lattice check used by the daemon write path (§4.2 / [D-46]) to
+   *  gate edits that bypass the hook. The daemon only knows the path (node grain),
+   *  so a node-grain query conservatively conflicts with ANY held sub-region —
+   *  it over-blocks rather than ever under-blocking. */
+  canWrite(target: { repo: string; nodeId: string; regionId: string; grain: Grain; actorId: string }): {
+    allowed: boolean;
+    holder?: string;
+    holderKind?: Kind;
+  } {
     this.sweep();
-    const c = this.exclusiveByRegion.get(regionId);
-    if (!c || c.holder === actorId) return { allowed: true };
+    const c = this.findConflicting(target);
+    if (!c) return { allowed: true };
     return { allowed: false, holder: c.holder, holderKind: c.kind };
   }
 
-  /** Release whatever exclusive claim `actorId` holds on `regionId` (used by the
-   *  PostToolUse hook, which knows repo+actor+path but not the claim_id/fence). */
-  releaseByRegion(regionId: string, actorId: string): { released: boolean } {
+  /** Release all of `actorId`'s exclusive claims under a file (node). The
+   *  PostToolUse hook knows repo+actor+path but not which symbol it claimed, so
+   *  releasing by node is robust to grain drift / symbol rename between pre & post.
+   *  Honors holdCount (mirrors release()). */
+  releaseByNode(nodeId: string, actorId: string): { released: number } {
     this.sweep();
-    const c = this.exclusiveByRegion.get(regionId);
-    if (c && c.holder === actorId) {
-      this.removeClaim(c);
-      return { released: true };
+    const b = this.byNode.get(nodeId);
+    if (!b) return { released: 0 };
+    const mine: Claim[] = [];
+    if (b.nodeClaim && b.nodeClaim.holder === actorId) mine.push(b.nodeClaim);
+    for (const r of b.regionClaims.values()) if (r.holder === actorId) mine.push(r);
+    let released = 0;
+    for (const c of mine) {
+      c.holdCount -= 1;
+      if (c.holdCount <= 0) {
+        this.removeClaim(c);
+        released++;
+      }
     }
-    return { released: false };
+    return { released };
   }
 
   private removeClaim(c: Claim): void {
     this.claimById.delete(c.claimId);
+    // invalidate any idempotency entry that replays this (now-gone) GRANTED outcome
+    if (c.requestId) this.idempotency.delete(c.requestId);
     if (c.mode === "exclusive") {
       if (this.exclusiveByRegion.get(c.regionId)?.claimId === c.claimId) {
         this.exclusiveByRegion.delete(c.regionId);
+      }
+      const b = this.byNode.get(c.nodeId);
+      if (b) {
+        if ((c.grain === "node" || c.grain === "repo") && b.nodeClaim?.claimId === c.claimId) b.nodeClaim = undefined;
+        else if (b.regionClaims.get(c.regionId)?.claimId === c.claimId) b.regionClaims.delete(c.regionId);
+        if (!b.nodeClaim && b.regionClaims.size === 0) this.byNode.delete(c.nodeId);
       }
     } else {
       const holders = this.sharedByRegion.get(c.regionId);

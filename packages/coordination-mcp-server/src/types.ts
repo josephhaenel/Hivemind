@@ -14,6 +14,9 @@ export interface Claim {
   claimId: string;
   repo: string;
   regionId: string;
+  nodeId: string; // symbol-less hash of the file path; the containment parent of region claims
+  byteRange?: [number, number]; // advisory only — never hashed (region overlap fallback)
+  requestId?: string; // owning request_id, so idempotency entries can be invalidated on release
   grain: Grain;
   anchor: string; // human-readable path or path#Symbol
   holder: string; // actorId

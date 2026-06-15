@@ -5,13 +5,16 @@ import os from "node:os";
 import path from "node:path";
 import { CoordinationStore } from "./store.js";
 
-function mkReq(store: CoordinationStore, over: Partial<Parameters<CoordinationStore["claim"]>[0]> = {}) {
+type Over = Partial<Parameters<CoordinationStore["claim"]>[0]> & { symbol?: string };
+function mkReq(store: CoordinationStore, over: Over = {}) {
   const repo = over.repo ?? "demo";
   const path = over.path ?? "src/app.ts";
-  const r = store.resolveRegion(repo, path, over.regionId ? undefined : undefined);
+  const r = store.resolveRegion(repo, path, over.symbol);
+  const { symbol, ...rest } = over;
   return {
     repo,
     regionId: r.regionId,
+    nodeId: r.nodeId,
     anchor: r.anchor,
     grain: r.grain,
     path,
@@ -20,7 +23,7 @@ function mkReq(store: CoordinationStore, over: Partial<Parameters<CoordinationSt
     mode: "exclusive" as const,
     intent: "edit",
     requestId: Math.random().toString(36).slice(2),
-    ...over,
+    ...rest,
   };
 }
 
@@ -141,6 +144,55 @@ test("enforceRegistration: unregistered agent fails closed on enforcing region",
   const o = s.claim(mkReq(s, { actorId: "ghost", origin: "agent" }));
   assert.equal(o.result, "ERROR");
   if (o.result === "ERROR") assert.equal(o.error.code, "UNREGISTERED_ACTOR");
+});
+
+// ---- region lattice (repo ⊃ node ⊃ region) ----
+
+test("two agents can hold DIFFERENT symbols in the same file", () => {
+  const s = new CoordinationStore();
+  const a = s.claim(mkReq(s, { actorId: "A", symbol: "foo" }));
+  const b = s.claim(mkReq(s, { actorId: "B", symbol: "bar" }));
+  assert.equal(a.result, "GRANTED");
+  assert.equal(b.result, "GRANTED");
+});
+
+test("the SAME symbol stays exclusive (agent-vs-agent blocked)", () => {
+  const s = new CoordinationStore();
+  s.claim(mkReq(s, { actorId: "A", symbol: "foo" }));
+  const b = s.claim(mkReq(s, { actorId: "B", symbol: "foo" }));
+  assert.equal(b.result, "BLOCKED");
+});
+
+test("a whole-file claim blocks region claims in that file (and vice versa)", () => {
+  const s1 = new CoordinationStore();
+  s1.claim(mkReq(s1, { actorId: "A" })); // node grain
+  assert.equal(s1.claim(mkReq(s1, { actorId: "B", symbol: "foo" })).result, "BLOCKED");
+
+  const s2 = new CoordinationStore();
+  s2.claim(mkReq(s2, { actorId: "A", symbol: "foo" })); // region grain
+  assert.equal(s2.claim(mkReq(s2, { actorId: "B" })).result, "BLOCKED");
+});
+
+test("same actor may hold both a file and a region within it", () => {
+  const s = new CoordinationStore();
+  assert.equal(s.claim(mkReq(s, { actorId: "A", symbol: "foo" })).result, "GRANTED");
+  assert.equal(s.claim(mkReq(s, { actorId: "A" })).result, "GRANTED");
+});
+
+test("canWrite at node grain over-blocks a held sub-region for another actor", () => {
+  const s = new CoordinationStore();
+  s.claim(mkReq(s, { actorId: "A", symbol: "foo" }));
+  const r = s.resolveRegion("demo", "src/app.ts"); // node grain (no symbol)
+  assert.equal(s.canWrite({ repo: "demo", nodeId: r.nodeId, regionId: r.regionId, grain: r.grain, actorId: "B" }).allowed, false);
+  assert.equal(s.canWrite({ repo: "demo", nodeId: r.nodeId, regionId: r.regionId, grain: r.grain, actorId: "A" }).allowed, true);
+});
+
+test("releaseByNode frees an actor's region claim; the file becomes claimable", () => {
+  const s = new CoordinationStore();
+  assert.equal(s.claim(mkReq(s, { actorId: "A", symbol: "foo" })).result, "GRANTED");
+  const r = s.resolveRegion("demo", "src/app.ts");
+  assert.equal(s.releaseByNode(r.nodeId, "A").released, 1);
+  assert.equal(s.claim(mkReq(s, { actorId: "B" })).result, "GRANTED"); // bucket cleared
 });
 
 test("persistence: decisions + identity survive across store instances", () => {

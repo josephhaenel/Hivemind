@@ -97,6 +97,8 @@ app.post("/v1/claim", (req: Request, res: Response) => {
   const outcome = store.claim({
     repo: b.repo,
     regionId: r.regionId,
+    nodeId: r.nodeId,
+    byteRange: Array.isArray(b.byte_range) ? (b.byte_range as [number, number]) : undefined,
     anchor: r.anchor,
     grain: r.grain,
     path: b.path,
@@ -127,8 +129,8 @@ app.post("/v1/release_by_region", (req: Request, res: Response) => {
     res.status(400).json({ error: "repo, actorId, path are required" });
     return;
   }
-  const r = store.resolveRegion(b.repo, b.path, b.symbol);
-  res.json(store.releaseByRegion(r.regionId, b.actorId));
+  const r = store.resolveRegion(b.repo, b.path); // release ALL of this actor's claims in the file (node)
+  res.json(store.releaseByNode(r.nodeId, b.actorId));
 });
 
 app.get("/v1/can_write", (req: Request, res: Response) => {
@@ -140,7 +142,7 @@ app.get("/v1/can_write", (req: Request, res: Response) => {
     return;
   }
   const r = store.resolveRegion(repo, p, req.query.symbol ? String(req.query.symbol) : undefined);
-  res.json(store.canWrite(r.regionId, actorId));
+  res.json(store.canWrite({ repo, nodeId: r.nodeId, regionId: r.regionId, grain: r.grain, actorId }));
 });
 
 app.get("/v1/whos_editing", (req: Request, res: Response) => {

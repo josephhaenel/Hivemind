@@ -104,6 +104,7 @@ export function buildServer(store: CoordinationStore): McpServer {
     },
     async (a) => {
       let regionId = a.regionId;
+      let nodeId: string;
       let anchor = a.path ?? a.regionId ?? "";
       let grain: "repo" | "node" | "region" = a.symbol ? "region" : a.path ? "node" : "region";
       if (!regionId) {
@@ -116,13 +117,18 @@ export function buildServer(store: CoordinationStore): McpServer {
         }
         const r = store.resolveRegion(a.repo, a.path, a.symbol);
         regionId = r.regionId;
+        nodeId = r.nodeId;
         anchor = r.anchor;
         grain = r.grain;
+      } else {
+        // opaque regionId supplied directly; derive nodeId from path when available
+        nodeId = a.path ? store.resolveRegion(a.repo, a.path).nodeId : regionId;
       }
       return claimResult(
         store.claim({
           repo: a.repo,
           regionId,
+          nodeId,
           anchor,
           grain,
           path: a.path,
