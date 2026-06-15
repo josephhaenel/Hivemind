@@ -205,6 +205,78 @@ test("a claim lights up presence, scoped to its repo", () => {
   assert.equal(s.whosEditing("r2").presence.length, 0); // scoped to r1
 });
 
+// ---- decision auto-inject (push the shared brain on a claim grant) ----
+
+function postDecision(
+  s: CoordinationStore,
+  over: { repo?: string; scope: Parameters<CoordinationStore["postDecision"]>[0]["scope"]; kind?: string; title: string; rid: string }
+) {
+  return s.postDecision({
+    repo: over.repo ?? "demo",
+    scope: over.scope,
+    kind: over.kind ?? "convention",
+    title: over.title,
+    body: over.title,
+    author: "alice",
+    authorKind: "human",
+    requestId: over.rid,
+  });
+}
+
+test("a granted claim auto-injects the repo + file + region decisions", () => {
+  const s = new CoordinationStore();
+  const r = s.resolveRegion("demo", "src/api.ts", "login");
+  postDecision(s, { scope: { level: "repo" }, kind: "constraint", title: "use ulids", rid: "x1" });
+  postDecision(s, { scope: { level: "node", id: r.nodeId, pathHint: "src/api.ts" }, kind: "convention", title: "api style", rid: "x2" });
+  postDecision(s, { scope: { level: "region", id: r.regionId, pathHint: r.anchor }, kind: "interface", title: "login returns Result", rid: "x3" });
+
+  const o = s.claim(mkReq(s, { repo: "demo", actorId: "carol", path: "src/api.ts", symbol: "login" }));
+  assert.equal(o.result, "GRANTED");
+  if (o.result !== "GRANTED") return;
+  // a symbol-level claim still surfaces the file's and repo's decisions, not just its own region
+  assert.deepEqual(o.decisions.map((d) => d.title).sort(), ["api style", "login returns Result", "use ulids"]);
+  // most-binding kind leads (constraint before interface before convention)
+  assert.equal(o.decisions[0].title, "use ulids");
+});
+
+test("auto-inject is deduped per actor; a re-claim is silent, a new decision still gets through", () => {
+  const s = new CoordinationStore();
+  postDecision(s, { scope: { level: "repo" }, kind: "constraint", title: "c1", rid: "y1" });
+  const first = s.claim(mkReq(s, { actorId: "A", symbol: "foo" }));
+  assert.ok(first.result === "GRANTED" && first.decisions.length === 1);
+  const again = s.claim(mkReq(s, { actorId: "A", symbol: "foo" }));
+  assert.ok(again.result === "GRANTED" && again.decisions.length === 0); // already seen
+  postDecision(s, { scope: { level: "repo" }, kind: "convention", title: "c2", rid: "y2" });
+  const third = s.claim(mkReq(s, { actorId: "A", symbol: "foo" }));
+  assert.ok(third.result === "GRANTED");
+  assert.deepEqual(third.decisions.map((d) => d.title), ["c2"]); // only the net-new one
+});
+
+test("a different actor still receives the decisions", () => {
+  const s = new CoordinationStore();
+  postDecision(s, { scope: { level: "repo" }, kind: "constraint", title: "c1", rid: "z1" });
+  s.claim(mkReq(s, { actorId: "A", symbol: "foo" }));
+  const b = s.claim(mkReq(s, { actorId: "B", symbol: "bar" }));
+  assert.ok(b.result === "GRANTED" && b.decisions.length === 1);
+});
+
+test("a BLOCKED claim does not consume the actor's auto-inject budget", () => {
+  const s = new CoordinationStore();
+  postDecision(s, { scope: { level: "repo" }, kind: "constraint", title: "c1", rid: "k1" });
+  s.claim(mkReq(s, { actorId: "holder", symbol: "foo" })); // holder grabs foo
+  assert.equal(s.claim(mkReq(s, { actorId: "B", symbol: "foo" })).result, "BLOCKED"); // B blocked, sees nothing
+  const granted = s.claim(mkReq(s, { actorId: "B", symbol: "bar" })); // B's first real grant
+  assert.ok(granted.result === "GRANTED" && granted.decisions.length === 1); // block didn't mark c1 seen
+});
+
+test("scopeIntersects respects path boundaries (a.tsx's decision is not injected when editing a.ts)", () => {
+  const s = new CoordinationStore();
+  const rx = s.resolveRegion("demo", "src/a.tsx");
+  postDecision(s, { scope: { level: "node", id: rx.nodeId, pathHint: "src/a.tsx" }, title: "for a.tsx", rid: "b1" });
+  const o = s.claim(mkReq(s, { actorId: "A", path: "src/a.ts" }));
+  assert.ok(o.result === "GRANTED" && o.decisions.length === 0); // prefix bleed must not happen
+});
+
 test("persistence: decisions + identity survive across store instances", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wt-persist-"));
   try {

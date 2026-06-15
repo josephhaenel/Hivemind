@@ -72,6 +72,12 @@ const err = (
   extra: Partial<WtError> = {}
 ): WtError => ({ code, class: cls, message, ...extra });
 
+// Auto-inject: at most this many shared decisions ride along on a single claim grant.
+const AUTO_INJECT_CAP = 5;
+// Surface the most binding kinds first so a hard constraint is never crowded out of the cap by a soft note.
+const KIND_RANK: Record<string, number> = { constraint: 0, interface: 1, convention: 2, rationale: 3, note: 4 };
+const kindRank = (kind: string): number => KIND_RANK[kind] ?? 9;
+
 export class CoordinationStore {
   private fenceCounter = 0;
   private ordCounter = 0;
@@ -85,6 +91,11 @@ export class CoordinationStore {
   private presence = new Map<string, Presence>(); // keyed by actorId
   private identity = new Map<string, Identity>();
   private idempotency = new Map<string, ClaimOutcome>();
+  // Per-actor set of decisionIds already auto-injected, so a re-claim stays quiet.
+  // Ephemeral + per-process + independent of the claim lifecycle ON PURPOSE: the
+  // PostToolUse hook releases (and tears down) a claim after every edit, so any
+  // dedup tied to claims would reset each edit and re-spam. Cleared only on restart.
+  private decisionsSeen = new Map<string, Set<string>>();
   private policyRules: PolicyRule[];
   private enforceRegistration: boolean;
   private persistence?: JsonFilePersistence;
@@ -212,7 +223,7 @@ export class CoordinationStore {
       holders.set(req.actorId, claim);
       this.claimById.set(claim.claimId, claim);
       this.touchPresence(req, effectiveKind);
-      return this.remember(req.requestId, { result: "GRANTED", claim });
+      return this.remember(req.requestId, { result: "GRANTED", claim, decisions: this.decisionsForGrant(req) });
     }
 
     // exclusive — reentrant fast path: same actor re-claiming the exact same region/node
@@ -224,7 +235,7 @@ export class CoordinationStore {
         ownExact.lastProgress = req.progressToken;
       }
       this.touchPresence(req, ownExact.kind);
-      return this.remember(req.requestId, { result: "GRANTED", claim: ownExact });
+      return this.remember(req.requestId, { result: "GRANTED", claim: ownExact, decisions: this.decisionsForGrant(req) });
     }
 
     // lattice conflict check (repo ⊃ node ⊃ region), excluding our own claims
@@ -264,7 +275,32 @@ export class CoordinationStore {
     this.claimById.set(claim.claimId, claim);
     this.indexClaim(claim);
     this.touchPresence(req, effectiveKind);
-    return this.remember(req.requestId, { result: "GRANTED", claim });
+    return this.remember(req.requestId, { result: "GRANTED", claim, decisions: this.decisionsForGrant(req) });
+  }
+
+  /** The shared decisions to push to the actor at the moment a claim is GRANTED —
+   *  the "shared brain" reaching the agent right when it matters, instead of waiting
+   *  to be asked. Queried at NODE scope with a path-only pathHint so a symbol-level
+   *  claim still surfaces the FILE's (and repo's) conventions, not just the exact
+   *  region. Deduped per-actor by decisionId (see decisionsSeen) so a re-claim is
+   *  silent; only the SHOWN heads are marked seen, so cap-dropped ones surface on a
+   *  later claim rather than being suppressed forever. Most-binding kinds first.
+   *  SIDE-EFFECTING (advances the seen set): call ONLY on an actual grant. */
+  private decisionsForGrant(req: ClaimRequest): Decision[] {
+    const pathOnly = req.anchor.split("#")[0];
+    const relevant = this.getDecisions(req.repo, { level: "node", id: req.nodeId, pathHint: pathOnly });
+    if (relevant.length === 0) return [];
+    let seen = this.decisionsSeen.get(req.actorId);
+    if (!seen) {
+      seen = new Set<string>();
+      this.decisionsSeen.set(req.actorId, seen);
+    }
+    const fresh = relevant.filter((d) => !seen!.has(d.decisionId));
+    if (fresh.length === 0) return [];
+    fresh.sort((a, b) => kindRank(a.kind) - kindRank(b.kind) || b.ord - a.ord);
+    const shown = fresh.slice(0, AUTO_INJECT_CAP);
+    for (const d of shown) seen.add(d.decisionId);
+    return shown;
   }
 
   /** Lattice conflict check on the structural anchor (never un-hashes a regionId):
@@ -643,6 +679,12 @@ function scopeIntersects(query: DecisionScope, decision: DecisionScope): boolean
   if (decision.level === query.level && decision.id === query.id) return true;
   // node query should also see region decisions whose pathHint sits under the node, and vice-versa
   if (query.id && decision.id && query.id === decision.id) return true;
-  if (query.pathHint && decision.pathHint && decision.pathHint.startsWith(query.pathHint)) return true;
+  // ...only at a real boundary ("#" symbol / "/" dir) so "src/a.ts" doesn't match "src/a.tsx".
+  if (query.pathHint && decision.pathHint) {
+    const q = query.pathHint;
+    if (decision.pathHint === q || decision.pathHint.startsWith(q + "#") || decision.pathHint.startsWith(q + "/")) {
+      return true;
+    }
+  }
   return false;
 }

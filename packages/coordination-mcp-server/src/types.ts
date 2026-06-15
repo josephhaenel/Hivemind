@@ -92,7 +92,7 @@ export interface WtError {
 }
 
 export type ClaimOutcome =
-  | { result: "GRANTED"; claim: Claim }
+  | { result: "GRANTED"; claim: Claim; decisions: Decision[] }
   | { result: "WARN_PROCEED"; claim: Claim | null; conflicts: ConflictInfo[]; soft_fence: number }
   | { result: "BLOCKED"; error: WtError }
   | { result: "ERROR"; error: WtError };

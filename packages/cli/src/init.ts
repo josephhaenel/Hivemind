@@ -117,7 +117,7 @@ function writeClaudeMd(): void {
 You are sharing this repository with other people and their AI agents at the same time. Coordinate through the WorkingTogether tools so you never silently overwrite someone else's work:
 
 - **Before editing**, check who else is active: \`wt who\` (or the \`wt_whos_editing\` MCP tool). If another agent holds the file you need, work on something else and come back.
-- **Before starting on an area**, read prior decisions for it: \`wt decisions --path <file>\` (or \`wt_get_decisions\`). Honor them — they're constraints/conventions teammates established.
+- **When you claim a file to edit, its relevant decisions are surfaced to you automatically** (repo + file + symbol scope) — read them and honor them; they're constraints/conventions teammates established. To pull the full list any time: \`wt decisions --path <file>\` (or \`wt_get_decisions\`).
 - **When you make a notable choice** (a convention, constraint, interface contract, or non-obvious rationale), record it so others' agents pick it up: \`wt decide "<short title>" --path <file>\` (or \`wt_post_decision\`).
 - Your \`Edit\`/\`Write\` calls are auto-claimed by a hook. If one is **denied** because another agent holds the file, switch tasks and retry shortly rather than forcing it.
 ${CLAUDE_MD_END}

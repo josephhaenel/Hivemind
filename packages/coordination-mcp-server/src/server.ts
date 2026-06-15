@@ -48,6 +48,13 @@ function claimResult(o: ClaimOutcome): CallToolResult {
         ttl_ms: o.claim.ttlMs,
         heartbeat_ms: o.claim.heartbeatMs,
         message: `Granted exclusive claim on '${o.claim.anchor}'. Present this fence on every write; heartbeat within ttl_ms with an advancing progress_token.`,
+        decisions: o.decisions.map((d) => ({
+          kind: d.kind,
+          title: d.title,
+          body: d.body,
+          author: d.author,
+          scope: d.scope,
+        })),
       });
     case "WARN_PROCEED":
       return ok({
