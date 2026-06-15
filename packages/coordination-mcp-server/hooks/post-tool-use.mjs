@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Claude Code PostToolUse hook for WorkingTogether — releases the claim the
+ * Claude Code PostToolUse hook for Hivemind — releases the claim the
  * PreToolUse hook took for this file, so the region frees up immediately after
  * the edit (instead of waiting for the lease TTL). Releases by repo+actor+path,
  * so there is no client-side claim state to keep in sync.

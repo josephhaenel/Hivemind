@@ -1,6 +1,6 @@
-# @workingtogether/sync-daemon (+ sync-relay)
+# @hivemind/sync-daemon (+ sync-relay)
 
-Real-time file sync for **WorkingTogether** — the piece that makes collaborators see each other's *code* live, not just each other's claims. MVP slice of the sync substrate in [`docs/design/sync-loop.md`](../../docs/design/sync-loop.md).
+Real-time file sync for **Hivemind** — the piece that makes collaborators see each other's *code* live, not just each other's claims. MVP slice of the sync substrate in [`docs/design/sync-loop.md`](../../docs/design/sync-loop.md).
 
 ## How it works
 

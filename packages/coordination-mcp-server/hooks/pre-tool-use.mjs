@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Claude Code PreToolUse hook for WorkingTogether.
+ * Claude Code PreToolUse hook for Hivemind.
  *
  * Claims the target file BEFORE an Edit/Write. If another AGENT holds it -> DENY
  * (the agent does other work / coordinates). If a human is involved -> ASK. The

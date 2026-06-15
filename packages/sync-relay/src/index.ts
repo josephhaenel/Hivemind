@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * WorkingTogether sync relay.
+ * Hivemind sync relay.
  *
  * A minimal, standard Yjs websocket relay: one Y.Doc per room (room = URL path,
  * e.g. ws://host:4200/<repo>). It implements the y-protocols sync + awareness
@@ -182,7 +182,7 @@ export function startRelay(port: number): WebSocketServer {
   });
 
   console.error(
-    `wt-sync-relay listening on ws://localhost:${port}  (room = URL path, e.g. ws://localhost:${port}/<repo>)`
+    `hive-sync-relay listening on ws://localhost:${port}  (room = URL path, e.g. ws://localhost:${port}/<repo>)`
   );
   return wss;
 }

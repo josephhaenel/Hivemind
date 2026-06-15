@@ -1,11 +1,11 @@
 {
-  "name": "@workingtogether/coordination-mcp-server",
+  "name": "@hivemind/coordination-mcp-server",
   "version": "0.1.0",
-  "description": "WorkingTogether coordination MCP server: claims, presence, and the shared decisions bus for multiplayer AI coding. Implements docs/design/coordination-mcp.md (MVP slice).",
+  "description": "Hivemind coordination MCP server: claims, presence, and the shared decisions bus for multiplayer AI coding. Implements docs/design/coordination-mcp.md (MVP slice).",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "wt-coordination-mcp-server": "dist/index.js"
+    "hive-coordination-mcp-server": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Update an existing WorkingTogether server to the latest code and restart it.
+# Update an existing Hivemind server to the latest code and restart it.
 # Run as root on the VPS:  sudo bash deploy/update.sh
 #
 # Pulls the public repo into /opt/workingtogether/app (converting the initial
@@ -9,7 +9,7 @@
 set -euo pipefail
 
 APP="/opt/workingtogether/app"
-REPO="https://github.com/josephhaenel/WorkingTogether.git"
+REPO="https://github.com/josephhaenel/Hivemind.git"
 
 [ "$(id -u)" = "0" ] || { echo "Please run as root (sudo bash deploy/update.sh)"; exit 1; }
 

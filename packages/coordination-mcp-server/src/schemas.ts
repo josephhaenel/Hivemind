@@ -1,5 +1,5 @@
 /**
- * Zod input shapes for the wt_* tool surface. registerTool() takes a raw shape
+ * Zod input shapes for the hive_* tool surface. registerTool() takes a raw shape
  * (a plain object of zod fields), so these are exported as shapes, not z.object().
  */
 
@@ -16,7 +16,7 @@ export const claimShape = {
   actorId: z.string().min(1).describe("Stable per-machine actor id."),
   origin: z.enum(["agent", "human"]).describe("Who is making this edit. The hook stamps 'agent'; the watcher/manual path stamps 'human'."),
   intent: z.string().min(1).max(280).describe("One line: what you're about to do here."),
-  regionId: z.string().optional().describe("Region id from wt_resolve_region. Provide this OR (path[, symbol])."),
+  regionId: z.string().optional().describe("Region id from hive_resolve_region. Provide this OR (path[, symbol])."),
   path: z.string().optional().describe("File path; used if regionId is omitted (and for per-glob policy)."),
   symbol: z.string().optional(),
   mode: z.enum(["exclusive", "shared"]).default("exclusive"),

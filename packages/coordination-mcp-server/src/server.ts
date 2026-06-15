@@ -1,5 +1,5 @@
 /**
- * Builds an McpServer exposing the wt_* coordination tool surface over a shared
+ * Builds an McpServer exposing the hive_* coordination tool surface over a shared
  * CoordinationStore. A fresh McpServer is built per HTTP request (stateless
  * transport), but every tool closes over the SAME store, so state is shared
  * across all connected agents/machines.
@@ -62,7 +62,7 @@ function claimResult(o: ClaimOutcome): CallToolResult {
         soft_fence: o.soft_fence,
         conflicts: o.conflicts,
         message:
-          "A human is involved on this region. You may proceed, but your edit may become a tracked conflict. Coordinate via wt_whos_editing.",
+          "A human is involved on this region. You may proceed, but your edit may become a tracked conflict. Coordinate via hive_whos_editing.",
       });
     case "BLOCKED":
     case "ERROR":
@@ -71,10 +71,10 @@ function claimResult(o: ClaimOutcome): CallToolResult {
 }
 
 export function buildServer(store: CoordinationStore): McpServer {
-  const server = new McpServer({ name: "wt-coordination-mcp-server", version: "0.1.0" });
+  const server = new McpServer({ name: "hive-coordination-mcp-server", version: "0.1.0" });
 
   server.registerTool(
-    "wt_resolve_region",
+    "hive_resolve_region",
     {
       title: "Resolve a claimable region id",
       description:
@@ -86,7 +86,7 @@ export function buildServer(store: CoordinationStore): McpServer {
   );
 
   server.registerTool(
-    "wt_register",
+    "hive_register",
     {
       title: "Register an actor's identity",
       description:
@@ -101,11 +101,11 @@ export function buildServer(store: CoordinationStore): McpServer {
   );
 
   server.registerTool(
-    "wt_claim",
+    "hive_claim",
     {
       title: "Claim a region before editing",
       description:
-        "Claim a region BEFORE you write to it. Provide regionId (from wt_resolve_region) OR path[,symbol]. On GRANTED you receive a monotonic `fence` and a claim_id — present the fence on writes and heartbeat to keep the lease. On REGION_CLAIMED (class BLOCKED_RETRYABLE) another agent holds it: do other work and retry after retry_after_ms, or wt_handoff. On WARN_PROCEED a human is involved: you may proceed but may create a tracked conflict. Errors of class TERMINAL must not be spin-retried.",
+        "Claim a region BEFORE you write to it. Provide regionId (from hive_resolve_region) OR path[,symbol]. On GRANTED you receive a monotonic `fence` and a claim_id — present the fence on writes and heartbeat to keep the lease. On REGION_CLAIMED (class BLOCKED_RETRYABLE) another agent holds it: do other work and retry after retry_after_ms, or hive_handoff. On WARN_PROCEED a human is involved: you may proceed but may create a tracked conflict. Errors of class TERMINAL must not be spin-retried.",
       inputSchema: claimShape,
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -152,7 +152,7 @@ export function buildServer(store: CoordinationStore): McpServer {
   );
 
   server.registerTool(
-    "wt_release",
+    "hive_release",
     {
       title: "Release a claim",
       description:
@@ -167,7 +167,7 @@ export function buildServer(store: CoordinationStore): McpServer {
   );
 
   server.registerTool(
-    "wt_heartbeat",
+    "hive_heartbeat",
     {
       title: "Heartbeat a held claim",
       description:
@@ -182,7 +182,7 @@ export function buildServer(store: CoordinationStore): McpServer {
   );
 
   server.registerTool(
-    "wt_whos_editing",
+    "hive_whos_editing",
     {
       title: "See who is editing what",
       description:
@@ -208,7 +208,7 @@ export function buildServer(store: CoordinationStore): McpServer {
   );
 
   server.registerTool(
-    "wt_announce",
+    "hive_announce",
     {
       title: "Publish presence",
       description:
@@ -234,7 +234,7 @@ export function buildServer(store: CoordinationStore): McpServer {
   );
 
   server.registerTool(
-    "wt_post_decision",
+    "hive_post_decision",
     {
       title: "Post a shared decision",
       description:
@@ -260,7 +260,7 @@ export function buildServer(store: CoordinationStore): McpServer {
   );
 
   server.registerTool(
-    "wt_get_decisions",
+    "hive_get_decisions",
     {
       title: "Get relevant shared decisions",
       description:

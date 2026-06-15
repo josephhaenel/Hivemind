@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * WorkingTogether coordination MCP server — entry point.
+ * Hivemind coordination MCP server — entry point.
  *
  * Runs ONE long-lived HTTP process that all machines connect to. This is
  * deliberate: the coordination store must be shared across clients, so stdio
@@ -172,7 +172,7 @@ app.get("/v1/whos_editing", (req: Request, res: Response) => {
   res.json(store.whosEditing(repo, { pathGlob: req.query.path_glob ? String(req.query.path_glob) : undefined }));
 });
 
-// ---- decisions bus (REST mirror of the wt_post_decision / wt_get_decisions tools) ----
+// ---- decisions bus (REST mirror of the hive_post_decision / hive_get_decisions tools) ----
 app.get("/v1/decisions", (req: Request, res: Response) => {
   const repo = String(req.query.repo ?? "");
   if (!repo) {
@@ -217,7 +217,7 @@ app.get("/", (_req: Request, res: Response) => {
   try {
     res.type("html").send(fs.readFileSync(DASHBOARD_PATH, "utf8"));
   } catch {
-    res.type("html").send("<!doctype html><title>WorkingTogether</title><h1>WorkingTogether</h1><p>dashboard.html not found</p>");
+    res.type("html").send("<!doctype html><title>Hivemind</title><h1>Hivemind</h1><p>dashboard.html not found</p>");
   }
 });
 
@@ -231,7 +231,7 @@ app.get("/healthz", (_req: Request, res: Response) => {
 
 app.listen(PORT, () => {
   // stderr so it never pollutes stdout protocol streams
-  console.error(`wt-coordination-mcp-server listening on http://localhost:${PORT}`);
+  console.error(`hive-coordination-mcp-server listening on http://localhost:${PORT}`);
   console.error(`  MCP:   POST /mcp`);
   console.error(`  hooks: POST /v1/claim, POST /v1/release, GET /v1/whos_editing`);
   console.error(`  health: GET /healthz   (enforceRegistration=${ENFORCE_REGISTRATION}, persist=${DATA_DIR ?? "off"}, auth=${TOKEN ? "on" : "off"})`);

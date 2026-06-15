@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * WorkingTogether sync daemon CLI.
+ * Hivemind sync daemon CLI.
  *
- *   wt-sync-daemon --dir <repoDir> --relay ws://host:4200 --room <repoId>
+ *   hive-sync-daemon --dir <repoDir> --relay ws://host:4200 --room <repoId>
  *
  * Flags fall back to env (WT_DIR, WT_RELAY, WT_ROOM) then sensible defaults
  * (cwd, ws://localhost:4200, basename of the dir).

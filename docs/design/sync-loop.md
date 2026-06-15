@@ -1,6 +1,6 @@
-# WorkingTogether — the git-baseline ↔ CRDT-overlay synchronization loop
+# Hivemind — the git-baseline ↔ CRDT-overlay synchronization loop
 
-**Status:** Hardened spec (v2). This is the foundation document for WorkingTogether — a distributed, real-time "multiplayer for coding agents" layer over Claude Code / Codex. It specifies the spine of the product: how a durable git baseline and a live CRDT overlay stay in sync across distributed peers.
+**Status:** Hardened spec (v2). This is the foundation document for Hivemind — a distributed, real-time "multiplayer for coding agents" layer over Claude Code / Codex. It specifies the spine of the product: how a durable git baseline and a live CRDT overlay stay in sync across distributed peers.
 
 **How this was produced.** A multi-agent workflow grounded the design in prior art (jujutsu, GitButler, Automerge/Yjs, Zed/Figma, Syncthing), designed each dimension in parallel, synthesized a draft, then ran six adversarial skeptics that surfaced 57 failure scenarios (46 critical/high). This v2 folds the valid fixes in. Where a mechanism exists specifically to defeat an attack, it is tagged `[D-n]` (defends scenario n) so the rationale is traceable.
 

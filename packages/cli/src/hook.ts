@@ -1,6 +1,6 @@
 /**
- * Claude Code Edit/Write hooks, exposed as `wt hook pre` / `wt hook post` so
- * `.claude/settings.json` only needs `wt hook pre` (no script paths to manage).
+ * Claude Code Edit/Write hooks, exposed as `hive hook pre` / `hive hook post` so
+ * `.claude/settings.json` only needs `hive hook pre` (no script paths to manage).
  * Reads config from .wt/config.json or env. Fails OPEN — if the coordination
  * server is unreachable, editing is never blocked.
  */

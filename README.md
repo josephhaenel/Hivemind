@@ -1,6 +1,6 @@
-# WorkingTogether
+# Hivemind
 
-[![CI](https://github.com/josephhaenel/WorkingTogether/actions/workflows/ci.yml/badge.svg)](https://github.com/josephhaenel/WorkingTogether/actions/workflows/ci.yml)
+[![CI](https://github.com/josephhaenel/Hivemind/actions/workflows/ci.yml/badge.svg)](https://github.com/josephhaenel/Hivemind/actions/workflows/ci.yml)
 
 **Multiplayer for AI coding agents.** Two or more people coding the same repository — each with their own Claude Code / Codex session — without overwriting each other's work, and seeing each other's changes live.
 
@@ -66,7 +66,7 @@ The two planes compose: the daemon can check a claim before broadcasting a local
 
 | Path | What |
 |---|---|
-| [`packages/coordination-mcp-server`](packages/coordination-mcp-server) | Claims / presence / decisions. An MCP server (`wt_claim`, `wt_whos_editing`, `wt_post_decision`, …) plus REST shims for the hooks. Fence tokens, TTL+heartbeat leases, party-dependent policy. |
+| [`packages/coordination-mcp-server`](packages/coordination-mcp-server) | Claims / presence / decisions. An MCP server (`hive_claim`, `hive_whos_editing`, `hive_post_decision`, …) plus REST shims for the hooks. Fence tokens, TTL+heartbeat leases, party-dependent policy. |
 | [`packages/sync-relay`](packages/sync-relay) | Minimal Yjs CRDT websocket relay — one document per repo, fans updates out to peers. |
 | [`packages/sync-daemon`](packages/sync-daemon) | Per-machine disk⇄CRDT mirror; optional daemon-side claim enforcement. |
 | [`docs/design`](docs/design) | The full design specs (see below). |
@@ -122,8 +122,8 @@ Contributions and ideas welcome — start with the design docs.
 All four planned milestones have shipped and are deployed live (full detail + what's next in [docs/ROADMAP.md](docs/ROADMAP.md)):
 
 - ✅ **CI & tests** — build + test + integration demos on every push.
-- ✅ **Frictionless onboarding** — `wt init` wires the hooks, registers the MCP server, and writes a `CLAUDE.md` in one command; `wt up` / `wt status`. *(Remaining: publish to npm for clone-free `npx @workingtogether/cli`.)*
-- ✅ **Agents use the shared brain** — relevant decisions are auto-injected at claim time; agents also get `wt who` / `wt decisions` / `wt decide` and the matching MCP tools.
+- ✅ **Frictionless onboarding** — `hive init` wires the hooks, registers the MCP server, and writes a `CLAUDE.md` in one command; `hive up` / `hive status`. *(Remaining: publish to npm for clone-free `npx @hivemind/cli`.)*
+- ✅ **Agents use the shared brain** — relevant decisions are auto-injected at claim time; agents also get `hive who` / `hive decisions` / `hive decide` and the matching MCP tools.
 - ✅ **Awareness dashboard** — a live web view of who's online, claims, presence, and decisions.
 - ✅ **Region-level claims** — a dependency-free symbol resolver lets two agents edit different functions in the same file. *(diff3 conflict-as-data intentionally deferred — see Status & scope.)*
 

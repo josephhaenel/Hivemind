@@ -1,4 +1,4 @@
-# WorkingTogether — Quickstart
+# Hivemind — Quickstart
 
 Multiplayer for AI coding agents: two+ people coding the same repo with Claude Code / Codex get **collision avoidance** (agents don't clobber each other's functions) and **live file sync** (you see each other's code as it changes).
 
@@ -62,7 +62,7 @@ npm test            # coordination-server unit tests
    ```
    Set `WT_SERVER_URL=http://COORD_HOST:4100`, `WT_ACTOR_ID`, and `WT_REPO` in each collaborator's environment. The hooks **fail open** — if the coordination server is down, your editing is never blocked.
 
-   Optionally also add the coordination MCP server (`http://COORD_HOST:4100/mcp`) so agents can call `wt_whos_editing`, `wt_post_decision`, etc.
+   Optionally also add the coordination MCP server (`http://COORD_HOST:4100/mcp`) so agents can call `hive_whos_editing`, `hive_post_decision`, etc.
 
 ## Current limits (MVP)
 

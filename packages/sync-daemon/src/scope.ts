@@ -19,6 +19,7 @@ const ALWAYS_IGNORE = [
   "node_modules/",
   "dist/",
   "build/",
+  ".hive/",
   ".wt/",
   ".working-together/",
 ];

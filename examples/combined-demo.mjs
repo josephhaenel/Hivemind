@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * WorkingTogether — combined MVP demo (collision avoidance + live file sync).
+ * Hivemind — combined MVP demo (collision avoidance + live file sync).
  *
  * Spins up the REAL components on one machine:
  *   - coordination MCP server (claims)            packages/coordination-mcp-server

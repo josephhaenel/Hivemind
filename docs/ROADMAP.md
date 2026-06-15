@@ -1,6 +1,6 @@
 # Roadmap
 
-Where WorkingTogether is and where it's going. The MVP is shipped, deployed, and open-source: collision avoidance (hook + daemon-side), live file sync, a shared decisions bus, persistence, shared-token auth + TLS, and one-command self-hosting. The work below turns "works for us" into "genuinely good to use."
+Where Hivemind is and where it's going. The MVP is shipped, deployed, and open-source: collision avoidance (hook + daemon-side), live file sync, a shared decisions bus, persistence, shared-token auth + TLS, and one-command self-hosting. The work below turns "works for us" into "genuinely good to use."
 
 Each initiative lists its **goal**, **why it matters**, the **key tasks**, **dependencies**, and a rough **size**. They're ordered so each one makes the next easier or more valuable.
 
@@ -15,27 +15,27 @@ Each initiative lists its **goal**, **why it matters**, the **key tasks**, **dep
 
 ## 1. Frictionless onboarding — *adoption* 🚧 in progress
 
-**Status:** the `@workingtogether/cli` (`wt`) is built — `wt init` (saves config + wires hooks + gitignores the token), `wt up`/`wt down` (managed daemon), `wt status`, and `wt hook pre|post`. Remaining: publish to npm so `npx @workingtogether/cli` works clone-free.
+**Status:** the `@hivemind/cli` (`hive`) is built — `hive init` (saves config + wires hooks + gitignores the token), `hive up`/`hive down` (managed daemon), `hive status`, and `hive hook pre|post`. Remaining: publish to npm so `npx @hivemind/cli` works clone-free.
 
 **Goal:** go from "clone, build, hand-edit `.claude/settings.json`, run a long daemon command" to **one command**.
 **Why:** the single biggest lever for usefulness — nobody adopts a tool they can't start in a minute.
 **Tasks:**
-- `@workingtogether/cli` with `wt init` — prompts for server URL / token / repo / actor, writes the pre/post hooks into `.claude/settings.json`, and launches the daemon.
-- `wt status` — connection state, who's editing what, your active claims.
-- `wt up` / `wt down` — start/stop the daemon as a managed background process.
-- Publish packages to npm so `npx @workingtogether/cli init` works with zero clone.
+- `@hivemind/cli` with `hive init` — prompts for server URL / token / repo / actor, writes the pre/post hooks into `.claude/settings.json`, and launches the daemon.
+- `hive status` — connection state, who's editing what, your active claims.
+- `hive up` / `hive down` — start/stop the daemon as a managed background process.
+- Publish packages to npm so `npx @hivemind/cli init` works with zero clone.
 **Depends on:** nothing (the daemon + hooks already exist).
 **Size:** M.
 
 ## 2. Make agents *use* the shared brain — *realize the unique value* ✅ done
 
-**Status:** the decisions bus is reachable via REST + the `wt` CLI (`wt who`, `wt decisions [--path]`, `wt decide`), and `wt init` registers the coordination MCP server in `.mcp.json` (so the agent gets `wt_whos_editing` / `wt_get_decisions` / `wt_post_decision` natively) and writes a `CLAUDE.md` "Working together" section. **Auto-inject is now live:** every claim grant carries the scope-relevant decisions (repo + file + region, most-binding kinds first), and the PreToolUse hook surfaces them to the agent via `additionalContext` — so the team's constraints reach the agent *at the moment it edits*, with no pull required. Deduped per actor so re-edits stay quiet; framed as peer-authored data (not blindly-obeyed instructions). Remaining: tune the guidance with real usage.
+**Status:** the decisions bus is reachable via REST + the `hive` CLI (`hive who`, `hive decisions [--path]`, `hive decide`), and `hive init` registers the coordination MCP server in `.mcp.json` (so the agent gets `hive_whos_editing` / `hive_get_decisions` / `hive_post_decision` natively) and writes a `CLAUDE.md` "Working together" section. **Auto-inject is now live:** every claim grant carries the scope-relevant decisions (repo + file + region, most-binding kinds first), and the PreToolUse hook surfaces them to the agent via `additionalContext` — so the team's constraints reach the agent *at the moment it edits*, with no pull required. Deduped per actor so re-edits stay quiet; framed as peer-authored data (not blindly-obeyed instructions). Remaining: tune the guidance with real usage.
 
 **Goal:** agents actively consult presence and the decisions bus during real work, not just claim-before-write.
 **Why:** the decisions bus and awareness only pay off if agents read/write them; this is what makes the tool "shared context," not just "file locking."
 **Tasks:**
-- First-class MCP wiring so Claude Code/Codex can call `wt_whos_editing`, `wt_get_decisions`, `wt_post_decision`.
-- A generated `CLAUDE.md` snippet (written by `wt init`) instructing the agent to check who's editing and read relevant decisions before starting, and to record decisions as it makes them.
+- First-class MCP wiring so Claude Code/Codex can call `hive_whos_editing`, `hive_get_decisions`, `hive_post_decision`.
+- A generated `CLAUDE.md` snippet (written by `hive init`) instructing the agent to check who's editing and read relevant decisions before starting, and to record decisions as it makes them.
 - Auto-inject scope-relevant decisions on a claim grant (already specced in `coordination-mcp.md`).
 **Depends on:** 1 (so the MCP + CLAUDE.md are wired automatically).
 **Size:** M.
@@ -46,7 +46,7 @@ Each initiative lists its **goal**, **why it matters**, the **key tasks**, **dep
 
 **Goal:** a lightweight web view served by the coordination server: live presence, active claims, recent decisions.
 **Why:** humans need to *see* the collaboration; also the best demo/GIF material.
-**Tasks:** a read-only web UI (served at `/` on the coordination server) polling `wt_whos_editing` + decisions; live updates; token-gated.
+**Tasks:** a read-only web UI (served at `/` on the coordination server) polling `hive_whos_editing` + decisions; live updates; token-gated.
 **Depends on:** 2 (so there's presence + decision activity worth showing).
 **Size:** M.
 

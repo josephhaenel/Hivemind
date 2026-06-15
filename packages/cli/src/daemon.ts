@@ -1,5 +1,5 @@
 /**
- * `wt up` / `wt down` — start/stop the sync daemon as a managed background
+ * `hive up` / `hive down` — start/stop the sync daemon as a managed background
  * process, using the saved config (no long flag string to remember).
  */
 import fs from "node:fs";
@@ -15,7 +15,7 @@ const LOG_FILE = path.join(process.cwd(), ".wt", "daemon.log");
 function findDaemonEntry(): string {
   const require = createRequire(import.meta.url);
   try {
-    return require.resolve("@workingtogether/sync-daemon/dist/index.js");
+    return require.resolve("@hivemind/sync-daemon/dist/index.js");
   } catch {
     /* not installed as a dep; try the monorepo sibling */
   }
@@ -28,7 +28,7 @@ function findDaemonEntry(): string {
     "index.js"
   );
   if (fs.existsSync(sibling)) return sibling;
-  throw new Error("sync-daemon not found. Install @workingtogether/sync-daemon or build the monorepo.");
+  throw new Error("sync-daemon not found. Install @hivemind/sync-daemon or build the monorepo.");
 }
 
 function isRunning(pid: number): boolean {

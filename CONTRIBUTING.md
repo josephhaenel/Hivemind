@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in WorkingTogether!
+Thanks for your interest in Hivemind!
 
 ## Getting started
 
@@ -28,4 +28,4 @@ CI runs the build, unit tests, and the integration demos (`demo`, `demo:enforce`
 
 ## Good first areas
 
-See [docs/ROADMAP.md](docs/ROADMAP.md). Onboarding DX (the `wt` CLI) and the awareness dashboard are self-contained places to start.
+See [docs/ROADMAP.md](docs/ROADMAP.md). Onboarding DX (the `hive` CLI) and the awareness dashboard are self-contained places to start.

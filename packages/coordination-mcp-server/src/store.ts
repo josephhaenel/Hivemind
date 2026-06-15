@@ -204,8 +204,8 @@ export class CoordinationStore {
           error: err(
             "UNREGISTERED_ACTOR",
             "TERMINAL",
-            `Actor '${req.actorId}' is not registered; enforcing regions require registration. Call wt_register first.`,
-            { remediation: ["wt_register"] }
+            `Actor '${req.actorId}' is not registered; enforcing regions require registration. Call hive_register first.`,
+            { remediation: ["hive_register"] }
           ),
         }
       );
@@ -255,7 +255,7 @@ export class CoordinationStore {
               holder_kind: existing.kind,
               intent: existing.intent,
               retry_after_ms: retry,
-              remediation: ["wt_whos_editing", "wt_handoff", "retry after retry_after_ms"],
+              remediation: ["hive_whos_editing", "hive_handoff", "retry after retry_after_ms"],
             }
           ),
         });
@@ -550,7 +550,7 @@ export class CoordinationStore {
         return {
           ok: false,
           error: err("SUPERSEDE_RACE", "BLOCKED_RETRYABLE", "Target is no longer the chain head.", {
-            remediation: ["wt_get_decisions to find the current head, then resupersede"],
+            remediation: ["hive_get_decisions to find the current head, then resupersede"],
           }),
         };
       }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * wt — WorkingTogether CLI.
+ * hive — Hivemind CLI.
  */
 import { status } from "./status.js";
 import { hookPre, hookPost } from "./hook.js";
@@ -8,23 +8,23 @@ import { init } from "./init.js";
 import { up, down } from "./daemon.js";
 import { who, decisions, decide, announce } from "./brain.js";
 
-const HELP = `wt — WorkingTogether CLI
+const HELP = `hive — Hivemind CLI
 
 Usage:
-  wt init                Set up this repo: save config + wire the Claude Code hooks + MCP
-  wt up                  Start syncing this folder (background daemon)
-  wt down                Stop the daemon
-  wt status              Show server health + who's editing this repo
-  wt who                 Who's editing what right now
-  wt announce [state]    Publish your presence (state: online|editing|reviewing|idle)
-  wt decisions [--path P]            Read shared decisions (repo-wide, or for a file)
-  wt decide "<title>" [--body ..] [--path P] [--kind K]   Record a decision
-  wt hook pre|post       Internal: the Claude Code Edit/Write hooks (wired by init)
+  hive init                Set up this repo: save config + wire the Claude Code hooks + MCP
+  hive up                  Start syncing this folder (background daemon)
+  hive down                Stop the daemon
+  hive status              Show server health + who's editing this repo
+  hive who                 Who's editing what right now
+  hive announce [state]    Publish your presence (state: online|editing|reviewing|idle)
+  hive decisions [--path P]            Read shared decisions (repo-wide, or for a file)
+  hive decide "<title>" [--body ..] [--path P] [--kind K]   Record a decision
+  hive hook pre|post       Internal: the Claude Code Edit/Write hooks (wired by init)
 
 Config comes from .wt/config.json (written by init) or env:
   WT_SERVER_URL  WT_TOKEN  WT_REPO  WT_ACTOR_ID  WT_RELAY
 
-Docs: https://github.com/josephhaenel/WorkingTogether`;
+Docs: https://github.com/josephhaenel/Hivemind`;
 
 async function main(): Promise<void> {
   const [cmd, sub] = process.argv.slice(2);
@@ -57,7 +57,7 @@ async function main(): Promise<void> {
       if (sub === "pre") await hookPre();
       else if (sub === "post") await hookPost();
       else {
-        console.error("usage: wt hook <pre|post>");
+        console.error("usage: hive hook <pre|post>");
         process.exit(2);
       }
       break;

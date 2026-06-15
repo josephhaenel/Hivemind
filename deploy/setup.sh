@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# WorkingTogether — one-command self-host setup for a fresh Ubuntu/Debian VPS.
+# Hivemind — one-command self-host setup for a fresh Ubuntu/Debian VPS.
 #
 # Sets up: Node + Caddy, a non-root `wt` service user, the coordination server
 # and sync relay under systemd (auto-restart + persistence), automatic HTTPS/WSS
@@ -76,7 +76,7 @@ chmod 640 "$ENV_FILE"; chown root:"$WT_USER" "$ENV_FILE"
 echo "==> Writing systemd units"
 cat > /etc/systemd/system/wt-coordination.service <<EOF
 [Unit]
-Description=WorkingTogether coordination server
+Description=Hivemind coordination server
 After=network.target
 [Service]
 User=$WT_USER
@@ -92,7 +92,7 @@ EOF
 
 cat > /etc/systemd/system/wt-relay.service <<EOF
 [Unit]
-Description=WorkingTogether sync relay
+Description=Hivemind sync relay
 After=network.target
 [Service]
 User=$WT_USER
@@ -131,20 +131,18 @@ systemctl restart caddy
 
 sleep 2
 echo
-echo "================ WorkingTogether is up ================"
+echo "================ Hivemind is up ================"
 echo "Coordination (WT_SERVER_URL):  https://$WT_DOMAIN"
 echo "Relay        (--relay):        wss://$WT_DOMAIN/sync"
 echo "MCP endpoint:                  https://$WT_DOMAIN/mcp"
 echo "Shared token (WT_TOKEN):       $TOKEN"
 echo
-echo "Each collaborator sets:"
-echo "  WT_SERVER_URL=https://$WT_DOMAIN"
-echo "  WT_TOKEN=$TOKEN"
-echo "  WT_REPO=<your-repo-id>      (same for everyone)"
-echo "  WT_ACTOR_ID=<unique-name>   (different per person)"
-echo "and runs the sync daemon:"
-echo "  node packages/sync-daemon/dist/index.js --dir . \\"
-echo "    --relay wss://$WT_DOMAIN/sync --coord https://$WT_DOMAIN \\"
-echo "    --room \$WT_REPO --actor \$WT_ACTOR_ID --token \$WT_TOKEN"
-echo "See deploy/README.md for the Claude Code hook wiring."
+echo "Each collaborator (from their checkout of the shared repo):"
+echo "  npm run install:all && npm run build"
+echo "  node packages/cli/dist/index.js init \\"
+echo "    --server https://$WT_DOMAIN --token $TOKEN \\"
+echo "    --repo <shared-repo-id> --actor <unique-name>"
+echo "  node packages/cli/dist/index.js up        # start syncing"
+echo "(hive init wires the Claude Code hooks + MCP automatically.)"
+echo "See deploy/README.md for the full collaborator guide."
 echo "======================================================="

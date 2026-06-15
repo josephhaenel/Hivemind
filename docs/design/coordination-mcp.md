@@ -1,4 +1,4 @@
-# WorkingTogether — the coordination MCP layer (claims, presence, decisions)
+# Hivemind — the coordination MCP layer (claims, presence, decisions)
 
 **Status:** Hardened spec (v1). This is the layer agents actually call: the collision-avoidance + shared-memory surface that sits on top of the sync substrate in [`sync-loop.md`](./sync-loop.md). Read that first — this document depends on its model (epochs, nodeId/regionId, the strongly-consistent coordination store, the §4.3 landing-lease CAS, the local WAL, and the `[D-n]` defenses).
 
@@ -15,8 +15,8 @@
   - **CP / linearizable** — claims and decisions. Granted by a single CAS; read-before-write. Cannot be acquired while partitioned (no split-brain).
   - **AP / ephemeral** — presence/awareness. A heartbeat-expired state map, **not** in the overlay CRDT (#keeps it out of the I6 byte budget and avoids zombie tombstones).
   - **AP / local-first** — the actual edits, on the sync layer's overlay + local WAL.
-- **Tool surface:** a minimal namespaced `wt_*` set (§3). Resist sprawl — every extra tool degrades the agent's tool-selection accuracy.
-- **The spine:** `wt_claim` mints a monotonic `fence` (u64); the fence is threaded hook → write path and **validated at the resource**, defeating the zombie-lease hazard (`sync-loop.md` §10.3). This is invariant **I12** (§10).
+- **Tool surface:** a minimal namespaced `hive_*` set (§3). Resist sprawl — every extra tool degrades the agent's tool-selection accuracy.
+- **The spine:** `hive_claim` mints a monotonic `fence` (u64); the fence is threaded hook → write path and **validated at the resource**, defeating the zombie-lease hazard (`sync-loop.md` §10.3). This is invariant **I12** (§10).
 
 ---
 
@@ -46,7 +46,7 @@ The anchor path is a tree-sitter/LSP **qualified symbol path** (`Foo::bar`, `mod
 
 ### 2.3 Rename & reclassification are atomic with the fence
 
-- **Symbol rename** that changes the anchor path (`parse → parseFast` inside the same edit) re-mints regionId. `wt_rename_region` is a **single CP op carrying both the old→new regionId and the content edit**, migrating the fence in one conditional-write (#7) — never a separate orphaning step.
+- **Symbol rename** that changes the anchor path (`parse → parseFast` inside the same edit) re-mints regionId. `hive_rename_region` is a **single CP op carrying both the old→new regionId and the content edit**, migrating the fence in one conditional-write (#7) — never a separate orphaning step.
 - **Text→binary reclassification** (`sync-loop.md` §9) must **acquire/honor the node-grain fence before switching `contentRef`** from text-CRDT to BlobPointer, and the blob (LWW-with-claim) write path must check that fence (#8) — else an edit escapes its region fence onto the blob path.
 - On a **forced `WT-Deferred` land** (`sync-loop.md` §4.1) of a still-held region, the holder's claim is **re-anchored into epoch N+1 with a fresh fence, atomic with the epoch-pointer CAS** (#12) — the holder cannot keep writing across the swap with a stale fence.
 
@@ -67,11 +67,11 @@ The **load-bearing field is `class`**: `BLOCKED_RETRYABLE` (e.g. `REGION_CLAIMED
 **Core (9):**
 
 ```
-wt_resolve_region(repo, path, symbol?, byteRange?)
+hive_resolve_region(repo, path, symbol?, byteRange?)
   -> { regionId, nodeId, symbol, grain:"region"|"file" } | err REGION_UNRESOLVABLE
   // pure; resolves against committed bytes (§2.2). No side effects.
 
-wt_claim(repo, target:{regionId}|{path,symbol?,byteRange?}, mode:"exclusive"|"shared",
+hive_claim(repo, target:{regionId}|{path,symbol?,byteRange?}, mode:"exclusive"|"shared",
          intent, origin:"agent"|"human", request_id,
          wait:"none"|"queue"="none", priority?, force?=false, all_or_nothing?=false)
   -> GRANTED { claim_id, fence:u64, ttl_ms, heartbeat_ms }
@@ -80,25 +80,25 @@ wt_claim(repo, target:{regionId}|{path,symbol?,byteRange?}, mode:"exclusive"|"sh
    | err POLICY_DENIED | PARTITIONED_CP | UNREGISTERED_ACTOR (TERMINAL)
   // the denial payload is COMPLETE in one call (holder + contact + intent + remediation) — no second round-trip.
 
-wt_release(repo, claim_id, fence, request_id) -> { released:true, woke_next:bool } | err FENCE_REJECTED
-wt_heartbeat(repo, claim_id, fence_map:{regionId:fence}, progress_token)
+hive_release(repo, claim_id, fence, request_id) -> { released:true, woke_next:bool } | err FENCE_REJECTED
+hive_heartbeat(repo, claim_id, fence_map:{regionId:fence}, progress_token)
   -> { renewals:[{regionId, ttl_ms}] } | { forced_land:true, marker } | err FENCE_REJECTED
   // progress_token is REQUIRED — see §4.3.
-wt_upgrade(repo, claim_id, regionId, fence /*shared*/, request_id) -> GRANTED{ new_fence } | err REGION_CLAIMED
-wt_downgrade(repo, claim_id, regionId, fence, request_id) -> GRANTED{ new_fence, mode:"shared" }
-wt_handoff(repo, claim_id, regionId, fence, to_actor, note?, request_id) -> { handed_to, new_fence } | err
-wt_whos_editing(repo, scope?:{nodeId?|regionId?|pathGlob?}, format?:"CONCISE"|"DETAILED", cursor?, limit?)
+hive_upgrade(repo, claim_id, regionId, fence /*shared*/, request_id) -> GRANTED{ new_fence } | err REGION_CLAIMED
+hive_downgrade(repo, claim_id, regionId, fence, request_id) -> GRANTED{ new_fence, mode:"shared" }
+hive_handoff(repo, claim_id, regionId, fence, to_actor, note?, request_id) -> { handed_to, new_fence } | err
+hive_whos_editing(repo, scope?:{nodeId?|regionId?|pathGlob?}, format?:"CONCISE"|"DETAILED", cursor?, limit?)
   -> { peers:[{actorId, kind, state, region, since}], next_cursor? }
-wt_announce(repo, state, focus?, ttl_ms, progress_token, request_id) -> { ok:true }   // presence ping
+hive_announce(repo, state, focus?, ttl_ms, progress_token, request_id) -> { ok:true }   // presence ping
 ```
 
 **Decisions (3):**
 ```
-wt_post_decision(repo, scope:{level:"repo"|"node"|"region"|"task", id?}, kind, title, body,
+hive_post_decision(repo, scope:{level:"repo"|"node"|"region"|"task", id?}, kind, title, body,
                  supersedes?, tags?, request_id) -> { decisionId, ord } | err SUPERSEDE_RACE(BLOCKED_RETRYABLE)
-wt_get_decisions(repo, scope, include_superseded?=false, kinds?, format?="CONCISE", cursor?, limit?)
+hive_get_decisions(repo, scope, include_superseded?=false, kinds?, format?="CONCISE", cursor?, limit?)
   -> { decisions:[...], next_cursor? }   // chain-heads only by default, scope-intersection filtered
-wt_promote_decision(repo, decisionId, targetSection?, confirm) -> { promotedRef, claudeMdAnchor, commitIntent }
+hive_promote_decision(repo, decisionId, targetSection?, confirm) -> { promotedRef, claudeMdAnchor, commitIntent }
 ```
 
 Every mutating call carries an idempotent `request_id` (guid); the CP store persists `request_id → effect` for the full claim lifetime so a retried create/release is a no-op, not a double-apply (#23).
@@ -122,7 +122,7 @@ Rules:
 
 ### 4.3 Heartbeat requires proof of agent progress (#15, #53)
 
-The heartbeat runs in the daemon, so a daemon that heartbeats for a **stuck, runaway, or dead** agent would hold a broad claim forever (and show it "editing" in presence). Therefore `wt_heartbeat`/`wt_announce` require a `progress_token` — a monotonically advancing op/broadcast count (or explicit agent keepalive) proving the *agent* (not just the daemon) is alive. Absent progress within a bound, the lease lapses and presence stops reporting `editing`.
+The heartbeat runs in the daemon, so a daemon that heartbeats for a **stuck, runaway, or dead** agent would hold a broad claim forever (and show it "editing" in presence). Therefore `hive_heartbeat`/`hive_announce` require a `progress_token` — a monotonically advancing op/broadcast count (or explicit agent keepalive) proving the *agent* (not just the daemon) is alive. Absent progress within a bound, the lease lapses and presence stops reporting `editing`.
 
 ### 4.4 Multi-region claims are deadlock-safe on the per-edit path (#14, #20)
 
@@ -139,7 +139,7 @@ The deadlock-freedom argument can't rest only on `all_or_nothing` up-front sets 
 
 ### 4.6 Forced-land backpressure (#16, #17, #22)
 
-A still-claimed region that must land to honor I6/I11 (`sync-loop.md` §4.1) lands its last-committed state with a `WT-Deferred` marker — but this is **not silent**: the holder's next `wt_heartbeat` returns a `forced_land` backpressure signal so the agent reaches a safe boundary and re-anchors (§2.3), rather than livelocking on perpetually-torn lands. Priority may **shorten a holder's lease to its next safe boundary** but never preempts mid-write; a hard fairness bound caps how many priority jump-aheads any queued waiter suffers.
+A still-claimed region that must land to honor I6/I11 (`sync-loop.md` §4.1) lands its last-committed state with a `WT-Deferred` marker — but this is **not silent**: the holder's next `hive_heartbeat` returns a `forced_land` backpressure signal so the agent reaches a safe boundary and re-anchors (§2.3), rather than livelocking on perpetually-torn lands. Priority may **shorten a holder's lease to its next safe boundary** but never preempts mid-write; a hard fairness bound caps how many priority jump-aheads any queued waiter suffers.
 
 ---
 
@@ -176,15 +176,15 @@ A silently-ignored soft-warn lets a human clobber an agent (or vice-versa). So h
 
 ## 6. The decisions bus (shared memory)
 
-Durable, CP, append-only, content-addressed shared memory — lives in the coordination store (read-before-write), **not** the AP overlay. `wt_post_decision` / `wt_get_decisions` / `wt_promote_decision`.
+Durable, CP, append-only, content-addressed shared memory — lives in the coordination store (read-before-write), **not** the AP overlay. `hive_post_decision` / `hive_get_decisions` / `hive_promote_decision`.
 
 - **Append-only + supersede-chains** (ADR immutability): a decision is immutable; "current truth" = chain heads; contradiction resolution is free (the head wins). `include_superseded=false` by default.
-- **Two-ack durability, same contract as edits (#47):** `wt_post_decision` fsyncs to a local decisions-WAL before returning `created` (local-ack); CP append is the shared ack. A post issued while partitioned queues in the durable outbox and flushes on heal — it is never lost on a crash.
+- **Two-ack durability, same contract as edits (#47):** `hive_post_decision` fsyncs to a local decisions-WAL before returning `created` (local-ack); CP append is the shared ack. A post issued while partitioned queues in the durable outbox and flushes on heal — it is never lost on a crash.
 - **Offline supersede-fork (#45):** a buffered supersede whose `expected-old` is no longer the head on flush is **not silently re-parented** — it surfaces as a `SUPERSEDE_RACE` the agent (or a human) resolves; two live heads after a partition is a detected conflict, not a silent contradiction both peers follow.
 - **Scoped retrieval, anti-flood (#49, #51):** decisions are scoped `repo | nodeId | regionId | task`. On a claim grant the hook **auto-injects the scope-intersection** — region + node + task decisions **plus all repo-scoped decisions whose path intersects the claimed region** (inclusion does *not* hinge on the author having tagged it `constraint`). `CONCISE` bodies by default; `DETAILED` on demand. A per-`(actor, scope)` token-bucket + **semantic (not byte-exact) dedup** stops a looping agent from flooding the bus.
 - **Freshness by frontier (#50):** a region-scoped decision is stamped with the regionId's content frontier at post time; when the region's content advances past it, the decision is flagged `stale?` on retrieval so a moved-out-from-under-it decision isn't followed blindly.
 - **Retention (#48):** bounded by the **same finite recovery window** as the sync layer (`sync-loop.md` open-decision #8 / I11) — not an unbounded "an offline peer might still need it." Past the window, dominated decisions are GC'd. This is invariant **I13**.
-- **Promotion to `CLAUDE.md` (#52, #54):** one-way `wt_promote_decision` (human confirm required for agent-authored decisions). When a *promoted* decision is later superseded, raise a mandatory **promotion-drift event** so `CLAUDE.md` doesn't silently rot. For unattended agent runs, graduation-eligible decisions auto-**propose** promotion as a durable reviewable artifact (so a constraint that should reach `CLAUDE.md` isn't lost to GC before a human looks).
+- **Promotion to `CLAUDE.md` (#52, #54):** one-way `hive_promote_decision` (human confirm required for agent-authored decisions). When a *promoted* decision is later superseded, raise a mandatory **promotion-drift event** so `CLAUDE.md` doesn't silently rot. For unattended agent runs, graduation-eligible decisions auto-**propose** promotion as a durable reviewable artifact (so a constraint that should reach `CLAUDE.md` isn't lost to GC before a human looks).
 
 ---
 
@@ -211,15 +211,15 @@ An **ephemeral state-CRDT** (Yjs-awareness-style), separate from durable claims,
 
 ## 9. Hook integration
 
-- **PreToolUse** (before an `Edit`/`Write`): the daemon resolves the regionId (§2.2) → `wt_claim(mode=exclusive, origin=agent)`.
+- **PreToolUse** (before an `Edit`/`Write`): the daemon resolves the regionId (§2.2) → `hive_claim(mode=exclusive, origin=agent)`.
   - **GRANTED** → stamp the `fence` into the edit envelope; the write proceeds; the fence is checked at local-ack (§4.2) and at the relay.
   - **BLOCKED** → **the hook fails the tool call** (it does *not* spin-wait inside the hook, which would block the agent's single tool slot) with the consolidated denial payload (holder, intent, `retry_after_ms`, `remediation`) so the agent does useful other work, queues, or requests a handoff — branching on `class`.
   - **WARN_PROCEED** (human-involved) → proceed but flag; on sustained human authorship this escalates (§5.5).
   - The hook also **auto-injects scope-relevant decisions** (§6) on grant.
-- **PostToolUse:** `wt_broadcast(fence)` (carries the fence for I12 validation at the op-journal) + presence ping (with `progress_token`) + keep-or-release the claim. Keeping a claim across a multi-edit sequence is normal; the heartbeat (with progress proof) sustains it.
+- **PostToolUse:** `hive_broadcast(fence)` (carries the fence for I12 validation at the op-journal) + presence ping (with `progress_token`) + keep-or-release the claim. Keeping a claim across a multi-edit sequence is normal; the heartbeat (with progress proof) sustains it.
 - **Watcher / external-edit path `[D-46]`** (a human/manual edit, no hook): the watcher takes a **provisional claim or intent beacon on the *first* raw FS event** for a path — *before* the ~300ms coalescing debounce — so an unfenced external write can't land before the claim is acquired (#10); it then resolves the region against committed bytes and claims `origin=human`, emitting conflict-as-data on overlap rather than a silent merge.
 - **Codex parity:** the same contract behind Codex's hook mechanism; where Codex lacks a pre-write hook, the watcher provisional-claim path is the fallback (treated like the external path, with the latency caveat surfaced).
-- **Latency:** `wt_claim` is on the hot path of every edit, so the GRANTED-from-cache fast path (liveness-gated, §4.2) keeps the common case sub-millisecond; only a cache miss / contended region pays the CP round-trip.
+- **Latency:** `hive_claim` is on the hot path of every edit, so the GRANTED-from-cache fast path (liveness-gated, §4.2) keeps the common case sub-millisecond; only a cache miss / contended region pays the CP round-trip.
 
 ---
 

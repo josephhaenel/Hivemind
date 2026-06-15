@@ -1,11 +1,11 @@
 {
-  "name": "@workingtogether/sync-daemon",
+  "name": "@hivemind/sync-daemon",
   "version": "0.1.0",
-  "description": "WorkingTogether per-machine sync daemon: mirrors the gitignore-bounded working tree into a shared Yjs CRDT (disk->CRDT on local edits, CRDT->disk on remote edits) via the sync relay.",
+  "description": "Hivemind per-machine sync daemon: mirrors the gitignore-bounded working tree into a shared Yjs CRDT (disk->CRDT on local edits, CRDT->disk on remote edits) via the sync relay.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "wt-sync-daemon": "dist/index.js"
+    "hive-sync-daemon": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

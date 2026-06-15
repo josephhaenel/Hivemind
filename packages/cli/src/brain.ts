@@ -35,7 +35,7 @@ export async function who(): Promise<void> {
       console.log(`(presence) ${p.actorId} ${p.state}${p.focus?.pathHint ? ` @ ${p.focus.pathHint}` : ""}`);
     }
   } catch (e) {
-    console.error(`wt who: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(`hive who: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);
   }
 }
@@ -64,7 +64,7 @@ export async function decisions(): Promise<void> {
       if (d.body && d.body !== d.title) console.log(`    ${d.body}`);
     }
   } catch (e) {
-    console.error(`wt decisions: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(`hive decisions: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);
   }
 }
@@ -86,7 +86,7 @@ export async function announce(): Promise<void> {
     await api(cfg, "/v1/announce", { method: "POST", body: JSON.stringify(body) });
     console.log(`announced: ${state}${body.path ? " @ " + body.path : ""}`);
   } catch (e) {
-    console.error(`wt announce: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(`hive announce: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);
   }
 }
@@ -96,7 +96,7 @@ export async function decide(): Promise<void> {
   const positional = process.argv[3] && !process.argv[3].startsWith("--") ? process.argv[3] : undefined;
   const title = flag("title") ?? positional;
   if (!title) {
-    console.error('usage: wt decide "<title>" [--body "..."] [--path <file>] [--kind constraint|convention|rationale|interface|note]');
+    console.error('usage: hive decide "<title>" [--body "..."] [--path <file>] [--kind constraint|convention|rationale|interface|note]');
     process.exit(2);
   }
   const path = flag("path");
@@ -118,7 +118,7 @@ export async function decide(): Promise<void> {
     };
     console.log(`recorded decision ${r.decisionId ?? ""}`.trim());
   } catch (e) {
-    console.error(`wt decide: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(`hive decide: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);
   }
 }

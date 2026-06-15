@@ -1,5 +1,5 @@
 /**
- * Core domain types for the WorkingTogether coordination layer.
+ * Core domain types for the Hivemind coordination layer.
  * See docs/design/coordination-mcp.md for the full model.
  */
 

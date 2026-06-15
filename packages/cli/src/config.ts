@@ -1,6 +1,7 @@
 /**
- * Resolve WorkingTogether client config from `.wt/config.json` (in the repo) and
+ * Resolve Hivemind client config from `.hive/config.json` (in the repo) and
  * environment variables. Env always wins, so CI / one-off overrides work.
+ * The legacy `.wt/` dir and `WT_*` env vars are still honored for back-compat.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -14,15 +15,23 @@ export interface WtConfig {
   actor: string;
 }
 
-export const CONFIG_PATH = path.join(process.cwd(), ".wt", "config.json");
+// Write to .hive/; read from .hive/ then fall back to the legacy .wt/ dir.
+export const CONFIG_PATH = path.join(process.cwd(), ".hive", "config.json");
+const LEGACY_CONFIG_PATH = path.join(process.cwd(), ".wt", "config.json");
+
+function readConfigFile(): Partial<WtConfig> {
+  for (const p of [CONFIG_PATH, LEGACY_CONFIG_PATH]) {
+    try {
+      return JSON.parse(fs.readFileSync(p, "utf8"));
+    } catch {
+      /* try the next location */
+    }
+  }
+  return {};
+}
 
 export function loadConfig(): WtConfig {
-  let file: Partial<WtConfig> = {};
-  try {
-    file = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
-  } catch {
-    /* no config file yet */
-  }
+  const file = readConfigFile();
   const serverUrl = process.env.WT_SERVER_URL || file.serverUrl || "http://localhost:4100";
   return {
     serverUrl,

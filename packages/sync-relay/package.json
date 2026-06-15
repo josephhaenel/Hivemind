@@ -1,11 +1,11 @@
 {
-  "name": "@workingtogether/sync-relay",
+  "name": "@hivemind/sync-relay",
   "version": "0.1.0",
-  "description": "WorkingTogether sync relay: a minimal Yjs CRDT relay (websocket) that fans out document updates between connected sync daemons. One room per repo.",
+  "description": "Hivemind sync relay: a minimal Yjs CRDT relay (websocket) that fans out document updates between connected sync daemons. One room per repo.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "wt-sync-relay": "dist/index.js"
+    "hive-sync-relay": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

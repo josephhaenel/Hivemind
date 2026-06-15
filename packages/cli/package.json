@@ -1,9 +1,10 @@
 {
-  "name": "@workingtogether/cli",
+  "name": "@hivemind/cli",
   "version": "0.1.0",
-  "description": "WorkingTogether CLI: one-command setup, status, and the Claude Code hooks.",
+  "description": "Hivemind CLI: one-command setup, status, and the Claude Code hooks.",
   "type": "module",
   "bin": {
+    "hive": "dist/index.js",
     "wt": "dist/index.js"
   },
   "files": ["dist"],

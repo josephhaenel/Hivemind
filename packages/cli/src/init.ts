@@ -1,5 +1,5 @@
 /**
- * `wt init` — one-command onboarding. Saves .wt/config.json, wires the pre/post
+ * `hive init` — one-command onboarding. Saves .hive/config.json, wires the pre/post
  * hooks into .claude/settings.json (calling this CLI, so no script paths to
  * manage), and makes sure the token-bearing config never gets committed.
  *
@@ -50,7 +50,7 @@ function wireHooks(): void {
   const hooks = (settings.hooks as Record<string, unknown[]>) ?? {};
   for (const [event, sub] of [["PreToolUse", "pre"], ["PostToolUse", "post"]] as const) {
     const list = (hooks[event] as Array<{ hooks?: Array<{ command?: string }> }>) ?? [];
-    const already = list.some((g) => g.hooks?.some((h) => h.command?.includes("wt") && h.command?.includes(`hook ${sub}`)));
+    const already = list.some((g) => g.hooks?.some((h) => h.command?.includes(`hook ${sub}`)));
     if (!already) {
       list.push({
         matcher: "Edit|Write|MultiEdit",
@@ -80,7 +80,7 @@ function protectFromGit(patterns: string[]): void {
   }
 }
 
-/** Register the coordination MCP server so the agent gets the wt_* tools natively. */
+/** Register the coordination MCP server so the agent gets the hive_* tools natively. */
 function writeMcpJson(cfg: WtConfig): void {
   const p = path.join(process.cwd(), ".mcp.json");
   let json: { mcpServers?: Record<string, unknown> } = {};
@@ -90,7 +90,7 @@ function writeMcpJson(cfg: WtConfig): void {
     /* new file */
   }
   json.mcpServers = json.mcpServers ?? {};
-  json.mcpServers.workingtogether = {
+  json.mcpServers.hivemind = {
     type: "http",
     url: `${cfg.serverUrl.replace(/\/$/, "")}/mcp`,
     headers: cfg.token ? { Authorization: `Bearer ${cfg.token}` } : {},
@@ -98,8 +98,8 @@ function writeMcpJson(cfg: WtConfig): void {
   fs.writeFileSync(p, JSON.stringify(json, null, 2) + "\n");
 }
 
-const CLAUDE_MD_START = "<!-- workingtogether:start -->";
-const CLAUDE_MD_END = "<!-- workingtogether:end -->";
+const CLAUDE_MD_START = "<!-- hivemind:start -->";
+const CLAUDE_MD_END = "<!-- hivemind:end -->";
 
 /** Drop guidance so the agent actively uses the shared brain. Idempotent. */
 function writeClaudeMd(): void {
@@ -114,11 +114,11 @@ function writeClaudeMd(): void {
   const section = `${CLAUDE_MD_START}
 ## Working together (real-time multiplayer)
 
-You are sharing this repository with other people and their AI agents at the same time. Coordinate through the WorkingTogether tools so you never silently overwrite someone else's work:
+You are sharing this repository with other people and their AI agents at the same time. Coordinate through the Hivemind tools so you never silently overwrite someone else's work:
 
-- **Before editing**, check who else is active: \`wt who\` (or the \`wt_whos_editing\` MCP tool). If another agent holds the file you need, work on something else and come back.
-- **When you claim a file to edit, its relevant decisions are surfaced to you automatically** (repo + file + symbol scope) — read them and honor them; they're constraints/conventions teammates established. To pull the full list any time: \`wt decisions --path <file>\` (or \`wt_get_decisions\`).
-- **When you make a notable choice** (a convention, constraint, interface contract, or non-obvious rationale), record it so others' agents pick it up: \`wt decide "<short title>" --path <file>\` (or \`wt_post_decision\`).
+- **Before editing**, check who else is active: \`hive who\` (or the \`hive_whos_editing\` MCP tool). If another agent holds the file you need, work on something else and come back.
+- **When you claim a file to edit, its relevant decisions are surfaced to you automatically** (repo + file + symbol scope) — read them and honor them; they're constraints/conventions teammates established. To pull the full list any time: \`hive decisions --path <file>\` (or \`hive_get_decisions\`).
+- **When you make a notable choice** (a convention, constraint, interface contract, or non-obvious rationale), record it so others' agents pick it up: \`hive decide "<short title>" --path <file>\` (or \`hive_post_decision\`).
 - Your \`Edit\`/\`Write\` calls are auto-claimed by a hook. If one is **denied** because another agent holds the file, switch tasks and retry shortly rather than forcing it.
 ${CLAUDE_MD_END}
 `;
@@ -139,7 +139,7 @@ export async function init(): Promise<void> {
 
   const cfg: WtConfig = { serverUrl, relayUrl, token: token || undefined, repo, actor };
   saveConfig(cfg);
-  protectFromGit([".wt/", ".mcp.json"]);
+  protectFromGit([".hive/", ".wt/", ".mcp.json"]);
   wireHooks();
   writeMcpJson(cfg);
   writeClaudeMd();
@@ -152,6 +152,6 @@ export async function init(): Promise<void> {
   console.log(`  relay  : ${relayUrl}`);
   console.log(`  repo   : ${repo}`);
   console.log(`  actor  : ${actor}`);
-  console.log(`\nNext:  wt up      # start syncing this folder`);
-  console.log(`       wt status  # see who's editing`);
+  console.log(`\nNext:  hive up      # start syncing this folder`);
+  console.log(`       hive status  # see who's editing`);
 }
